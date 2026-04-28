@@ -96,3 +96,24 @@ Genera un informe de preparació en ${lang} en format JSON:
 
   return JSON.parse(response.choices[0].message.content || '{}')
 }
+export const SYSTEM_PROMPT_ASSISTENT = `Ets un assistent polític especialitzat en l'Ajuntament de Castell-Platja d'Aro. 
+Analitzes documents municipals (acords, decrets, contractes, anuncis) i ajudes a un regidor de l'oposició a entendre i preparar respostes.
+Respon sempre en català. Sigues concís, objectiu i pràctic.
+Quan analitzis documents, destaca: imports econòmics, terminis, entitats afectades, i possibles preguntes que el regidor podria fer al ple.`
+
+export function buildAssistentPrompt(
+  consulta: string,
+  documents: Array<{ titol: string; tipus: string; contingut_text?: string; data_publicacio: string }>
+): string {
+  const docsContext = documents
+    .slice(0, 10)
+    .map((d, i) => `[${i + 1}] ${d.tipus.toUpperCase()} - ${d.titol} (${d.data_publicacio})\n${d.contingut_text?.slice(0, 500) || 'Sense contingut'}`)
+    .join('\n\n')
+
+  return `Consulta del regidor: ${consulta}
+
+Documents municipals rellevants:
+${docsContext}
+
+Respon en català amb: anàlisi breu, punts clau i suggeriments d'acció per al regidor.`
+}
