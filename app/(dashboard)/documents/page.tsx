@@ -1,41 +1,47 @@
 export default async function DocumentsPage({
-  searchParams,
+    searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | undefined }>
+    searchParams: Promise<{ [key: string]: string | undefined }>
 }) {
-  const params = await searchParams   // ← AQUESTA LÍNIA ÉS LA CLAU
+    const params = await searchParams
 
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  const page = parseInt(params.page || '1')       // ← params, no searchParams
-  const limit = 25
-  const offset = (page - 1) * limit
+  const page = parseInt(params.page || '1')
+    const limit = 25
+    const offset = (page - 1) * limit
 
-  if (searchParams.classificacio) query = query.eq('classificacio', searchParams.classificacio)
-  if (searchParams.font) query = query.eq('font', searchParams.font)
-  if (searchParams.tema) query = query.eq('tema_principal', searchParams.tema)
-  if (searchParams.estat) query = query.eq('estat_seguiment', searchParams.estat)
-  if (searchParams.search) {
-    query = query.or(`titol.ilike.%${searchParams.search}%,resum.ilike.%${searchParams.search}%`)
-  }
+  let query = supabase
+      .from('monitoratge')
+      .select('*', { count: 'exact' })
+      .order('data_publicacio', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+  if (params.classificacio) query = query.eq('classificacio', params.classificacio)
+    if (params.font) query = query.eq('font', params.font)
+    if (params.tema) query = query.eq('tema_principal', params.tema)
+    if (params.estat) query = query.eq('estat_seguiment', params.estat)
+    if (params.cerca) {
+          query = query.or(`titol.ilike.%${params.cerca}%,resum.ilike.%${params.cerca}%`)
+    }
 
   const { data: documents, count } = await query
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Documents</h1>
-          <p className="text-sm text-slate-500">{count || 0} documents trobats</p>
-        </div>
-        <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
-          Exportar CSV
-        </a>
-      </div>
-
-      <DocumentsFilters />
-      <DocumentsTable documents={documents || []} total={count || 0} page={page} limit={limit} userEmail={user?.email} />
-    </div>
-  )
-}
+        <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                      <div>
+                                <h1 className="text-2xl font-bold text-slate-800">Documents</h1>h1>
+                                <p className="text-sm text-slate-500">{count || 0} documents trobats</p>p>
+                      </div>div>
+                      <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+                                Exportar CSV
+                      </a>a>
+              </div>div>
+        
+              <DocumentsFilters />
+              <DocumentsTable documents={documents || []} total={count || 0} page={page} limit={limit} userEmail={user?.email} />
+        </div>div>
+      )
+}</div>
