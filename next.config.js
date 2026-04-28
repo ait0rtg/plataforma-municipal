@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['openai'],
-  },
-  images: {
-    domains: [],
-  },
+  serverExternalPackages: ['puppeteer-core'],
 }
 
 module.exports = nextConfig
