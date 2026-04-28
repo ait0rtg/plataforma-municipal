@@ -5,8 +5,9 @@ import DocumentsFilters from '@/components/documents/DocumentsFilters'
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined }
+  searchParams: Promise<{ [key: string]: string | undefined }>
 }) {
+  const params = await searchParams
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
