@@ -1,25 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import DocumentsTable from '@/components/documents/DocumentsTable'
-import DocumentsFilters from '@/components/documents/DocumentsFilters'
-
 export default async function DocumentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | undefined }>
 }) {
-  const params = await searchParams
-  const supabase = createClient()
+  const params = await searchParams   // ← AQUESTA LÍNIA ÉS LA CLAU
+
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const page = parseInt(searchParams.page || '1')
+  const page = parseInt(params.page || '1')       // ← params, no searchParams
   const limit = 25
   const offset = (page - 1) * limit
-
-  let query = supabase
-    .from('monitoratge')
-    .select('*', { count: 'exact' })
-    .order('data_deteccio', { ascending: false })
-    .range(offset, offset + limit - 1)
 
   if (searchParams.classificacio) query = query.eq('classificacio', searchParams.classificacio)
   if (searchParams.font) query = query.eq('font', searchParams.font)
