@@ -41,10 +41,10 @@ export default async function DocumentsPage({
                           </div>div>
                           <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
                                     Exportar CSV
-                          </a>a>
-                  </div>div>
+                          </a>
+                  </div>
                   <DocumentsFilters />
                   <DocumentsTable documents={documents || []} total={count || 0} page={page} limit={limit} userEmail={user?.email} />
-            </div>div>
+            </div>
           )
-}</div>
+}
