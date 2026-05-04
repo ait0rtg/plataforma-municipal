@@ -1,67 +1,75 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [remember, setRemember] = useState(false)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const supabase = createClient()
+    setError('')
+
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+
     if (error) {
-      toast.error('Credencials incorrectes. Torna-ho a intentar.')
+      setError('Credencials incorrectes')
       setLoading(false)
       return
     }
-    router.push('/dashboard')
-    router.refresh()
+
+    setTimeout(() => router.push('/dashboard'), 800)
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8">
-      <h2 className="text-xl font-semibold text-slate-800 mb-6">Inicia sessió</h2>
-      <form onSubmit={handleLogin} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="el-teu@email.com" />
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 w-full max-w-md">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold text-slate-800">Monitor Politic</h1>
+          <p className="text-slate-500 text-sm mt-1">Castell-Platja d Aro</p>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Contrasenya</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="••••••••" />
-        </div>
-        <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-            <span className="text-sm text-slate-600">Recorda'm</span>
-          </label>
-          <Link href="/reset-password" className="text-sm text-blue-600 hover:underline">
-            Has oblidat la contrasenya?
-          </Link>
-        </div>
-        <button type="submit" disabled={loading}
-          className="w-full py-2.5 px-4 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-60">
-          {loading ? 'Entrant...' : 'Inicia sessió'}
-        </button>
-      </form>
-      <p className="text-center text-sm text-slate-500 mt-4">
-        No tens compte?{' '}
-        <Link href="/register" className="text-blue-600 hover:underline font-medium">Registra't</Link>
-      </p>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Contrasenya</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Entrant...' : 'Entrar'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
