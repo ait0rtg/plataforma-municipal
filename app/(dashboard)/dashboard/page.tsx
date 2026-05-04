@@ -7,7 +7,7 @@ import ImportsChart from '@/components/charts/ImportsChart'
 import TemaDonut from '@/components/charts/TemaDonut'
 
 export default async function DashboardPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const [
     { data: urgents },
@@ -28,10 +28,14 @@ export default async function DashboardPage() {
       .gte('venciment', new Date().toISOString().split('T')[0])
       .order('venciment', { ascending: true })
       .limit(20),
-    supabase.rpc('get_dashboard_stats'),
     supabase.from('monitoratge')
-      .select('data_deteccio, import_detectat')
-      .not('import_detectat', 'is', null),
+      .select('classificacio, estat_seguiment, font')
+      .order('data_deteccio', { ascending: false }),
+    supabase.from('monitoratge')
+      .select('import_economic, data_publicacio')
+      .not('import_economic', 'is', null)
+      .order('data_publicacio', { ascending: true })
+      .limit(50),
     supabase.from('monitoratge')
       .select('tema_principal')
       .not('tema_principal', 'is', null),
@@ -41,24 +45,18 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Castelll-Platja d'Aro — visió general</p>
+        <p className="text-sm text-slate-500">Resum de l activitat municipal</p>
       </div>
-
-      <StatsCards stats={stats} />
-
+      <StatsCards data={stats || []} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <VencimentsCalendar venciments={venciments || []} />
-        <UrgentsTable urgents={urgents || []} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <ImportsChart data={importsData || []} />
-        </div>
+        <ImportsChart data={importsData || []} />
         <TemaDonut data={temaData || []} />
       </div>
-
-      <ActivityHeatmap />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UrgentsTable data={urgents || []} />
+        <VencimentsCalendar data={venciments || []} />
+      </div>
+      <ActivityHeatmap data={stats || []} />
     </div>
   )
 }
