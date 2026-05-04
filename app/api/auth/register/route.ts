@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Falten camps obligatoris.' }, { status: 400 })
   }
 
-  const supabase = createAdminClient()
+  const supabase = await createAdminClient()
 
   // Create auth user
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
