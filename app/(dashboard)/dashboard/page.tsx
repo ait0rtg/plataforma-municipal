@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const [
     { data: urgents },
     { data: venciments },
-    { data: stats },
+    { data: statsRaw },
     { data: importsData },
     { data: temaData },
   ] = await Promise.all([
@@ -41,22 +41,28 @@ export default async function DashboardPage() {
       .not('tema_principal', 'is', null),
   ])
 
+  const stats = statsRaw ? {
+    total_documents: statsRaw.length,
+    urgents_setmana: statsRaw.filter(d => d.classificacio === 'URGENT').length,
+    pendents_90dies: statsRaw.filter(d => d.estat_seguiment === 'pendent').length,
+  } : null
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
         <p className="text-sm text-slate-500">Resum de l activitat municipal</p>
       </div>
-      <StatsCards stats={stats?.[0] || null} />
+      <StatsCards stats={stats} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ImportsChart data={importsData || []} />
         <TemaDonut data={temaData || []} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UrgentsTable data={urgents || []} />
-        <VencimentsCalendar data={venciments || []} />
+        <UrgentsTable urgents={urgents || []} />
+        <VencimentsCalendar venciments={venciments || []} />
       </div>
-      <ActivityHeatmap data={stats || []} />
+      <ActivityHeatmap />
     </div>
   )
 }
