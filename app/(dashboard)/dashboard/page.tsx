@@ -32,8 +32,8 @@ export default async function DashboardPage() {
       .select('classificacio, estat_seguiment, font')
       .order('data_deteccio', { ascending: false }),
     supabase.from('monitoratge')
-      .select('import_detectat, data_deteccio, import_economic, data_publicacio')
-      .not('import_economic', 'is', null)
+      .select('import_detectat, data_deteccio')
+      .not('import_detectat', 'is', null)
       .order('data_deteccio', { ascending: true })
       .limit(50),
     supabase.from('monitoratge')
