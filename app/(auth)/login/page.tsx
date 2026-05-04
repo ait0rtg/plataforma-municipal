@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -21,7 +22,11 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: { persistSession: remember },
+    })
 
     if (error) {
       setError('Credencials incorrectes')
@@ -29,15 +34,15 @@ export default function LoginPage() {
       return
     }
 
-    setTimeout(() => router.push('/dashboard'), 800)
+    router.push('/dashboard')
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-slate-800">Monitor Politic</h1>
-          <p className="text-slate-500 text-sm mt-1">Castell-Platja d Aro</p>
+          <h1 className="text-2xl font-bold text-slate-800">Monitor Polític</h1>
+          <p className="text-slate-500 text-sm mt-1">Castell-Platja d'Aro</p>
         </div>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -59,6 +64,16 @@ export default function LoginPage() {
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={remember}
+              onChange={e => setRemember(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600"
+            />
+            <label htmlFor="remember" className="text-sm text-slate-600">Recorda'm</label>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <button
