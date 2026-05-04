@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { DocumentsFilters } from '@/components/documents/DocumentsFilters'
-import { DocumentsTable } from '@/components/documents/DocumentsTable'
+import DocumentsFilters from '@/components/documents/DocumentsFilters'
+import DocumentsTable from '@/components/documents/DocumentsTable'
 
 export default async function DocumentsPage({
   searchParams,
