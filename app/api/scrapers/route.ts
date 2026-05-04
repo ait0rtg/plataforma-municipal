@@ -47,7 +47,7 @@ export async function POST() {
 
     // --- SCRAPER 2: Perfil Contractant ---
     try {
-      const url = 'https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json?codi_ine=17034&$limit=50&$order=data_adjudicacio DESC'
+      const url = 'https://analisi.transparenciacatalunya.cat/resource/ybgg-dgi6.json?codi_ine=17048&$limit=50&$order=data_adjudicacio DESC'
       const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
       const data = await res.json()
 
