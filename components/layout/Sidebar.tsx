@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileText, Zap, Target, BarChart3,
-  Settings, LogOut, Shield
+  Settings, LogOut, Shield, MessageSquare, RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/assistent', label: 'Assistent', icon: Zap },
+  { href: '/assessor', label: 'Assessor IA', icon: MessageSquare },
   { href: '/compromisos', label: 'Compromisos', icon: Target },
   { href: '/analisi', label: 'Anàlisi', icon: BarChart3 },
 ]
@@ -21,6 +22,7 @@ const NAV = [
 export default function Sidebar({ userEmail, userName }: { userEmail: string; userName: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const admin = isAdmin(userEmail)
 
   async function handleLogout() {
     const supabase = createClient()
@@ -51,7 +53,7 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
           </Link>
         ))}
 
-        {isAdmin(userEmail) && (
+        {admin && (
           <>
             <div className="border-t border-slate-100 my-2" />
             <Link href="/admin"
@@ -63,6 +65,16 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
               )}>
               <Shield className="w-4 h-4" />
               Administració
+            </Link>
+            <Link href="/admin/usuaris"
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname.startsWith('/admin/usuaris')
+                  ? 'bg-slate-100 text-slate-800'
+                  : 'text-slate-500 hover:bg-slate-50'
+              )}>
+              <Settings className="w-4 h-4" />
+              Usuaris
             </Link>
           </>
         )}
