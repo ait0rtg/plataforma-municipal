@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import DocumentsFilters from '@/components/documents/DocumentsFilters'
 import DocumentsTable from '@/components/documents/DocumentsTable'
+import ActualitzarButton from '@/components/documents/ActualitzarButton'
 
 export default async function DocumentsPage({
   searchParams,
@@ -39,9 +40,12 @@ export default async function DocumentsPage({
           <h1 className="text-2xl font-bold text-slate-800">Documents</h1>
           <p className="text-sm text-slate-500">{count || 0} documents trobats</p>
         </div>
-        <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
-          Exportar CSV
-        </a>
+        <div className="flex items-center gap-3">
+          <ActualitzarButton />
+          <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+            Exportar CSV
+          </a>
+        </div>
       </div>
       <DocumentsFilters />
       <DocumentsTable documents={documents || []} total={count || 0} page={page} limit={limit} userEmail={user?.email} />
