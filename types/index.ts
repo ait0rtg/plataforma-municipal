@@ -1,7 +1,7 @@
 export type Rol = 'admin' | 'usuari' | 'pendent' | 'rebutjat'
 export type Classificacio = 'URGENT' | 'IMPORTANT' | 'INFORMATIU'
 export type Confianca = 'ALTA' | 'MITJA' | 'BAIXA'
-export type EstatSeguiment = 'pendent' | 'en_curs' | 'tancat'
+export type EstatSeguiment = 'pendent' | 'en_curs' | 'tancat' | 'arxivat'
 export type EstatDocument = 'nou' | 'revisat' | 'arxivat'
 export type EstatCompromis = 'pendent' | 'en_curs' | 'complet' | 'incomplert' | 'abandonat'
 
