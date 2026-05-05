@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 export async function POST(req: Request) {
   try {
@@ -12,23 +9,28 @@ export async function POST(req: Request) {
 
     const { id, titol, contingut } = await req.json()
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'Ets un assistent polític. Fes un resum concís en màxim 10 línies del document municipal. Respon en català. Destaca els punts clau i les implicacions polítiques si n\'hi ha.'
-        },
-        {
-          role: 'user',
-          content: `Títol: ${titol}\n\nContingut: ${contingut || 'No disponible'}`
-        }
-      ],
-      max_tokens: 500,
-    })
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Ets un assistent polític. Analitza aquest document municipal de l'Ajuntament de Castell-Platja d'Aro i fes un resum en màxim 20 línies en català. Destaca: dates importants, imports econòmics, decisions clau i implicacions polítiques.\n\nTítol: ${titol}\n\nContingut: ${contingut || 'No disponible'}`
+            }]
+          }]
+        })
+      }
+    )
 
-    const resum = completion.choices[0].message.content || ''
+    const geminiData = await geminiRes.json()
+    const resum = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+
+    if (!resum) return NextResponse.json({ error: 'No s\'ha pogut generar el resum' }, { status: 500 })
+
     await supabase.from('monitoratge').update({ resum }).eq('id', id)
+
     return NextResponse.json({ resum })
   } catch (error) {
     console.error('Error resum:', error)
