@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileText, Zap, Target, BarChart3,
-  LogOut, Shield, Settings, MessageSquare
+  LogOut, Shield, Settings, MessageSquare, Calendar
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -13,6 +13,7 @@ import { isAdmin, cn, getInitials } from '@/lib/utils'
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/documents', label: 'Documents', icon: FileText },
+  { href: '/calendari', label: 'Calendari', icon: Calendar },
   { href: '/assistent', label: 'Assistent', icon: Zap },
   { href: '/assessor', label: 'Assessor IA', icon: MessageSquare },
   { href: '/compromisos', label: 'Compromisos', icon: Target },
@@ -60,7 +61,7 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
             <Link href="/admin"
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                pathname.startsWith('/admin') && !pathname.startsWith('/admin/usuaris')
+                pathname === '/admin'
                   ? 'bg-slate-100 text-slate-800'
                   : 'text-slate-500 hover:bg-slate-50'
               )}>
