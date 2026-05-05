@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 function extractTag(xml: string, tag: string): string {
   const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`))
@@ -9,7 +9,7 @@ function extractTag(xml: string, tag: string): string {
   return ''
 }
 
-async function scrapeRSS(url: string, font: string, tipus: string, supabase: any) {
+async function scrapeRSS(url: string, font: string, tipus: string, adminSupabase: any) {
   let nous = 0
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
   const xml = await res.text()
@@ -25,7 +25,7 @@ async function scrapeRSS(url: string, font: string, tipus: string, supabase: any
 
     if (!url_original || !titol) continue
 
-    const { error } = await supabase.from('monitoratge').insert({
+    const { error } = await adminSupabase.from('monitoratge').insert({
       titol: titol.slice(0, 300),
       resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
       font,
@@ -46,13 +46,14 @@ export async function POST() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
 
+    const adminSupabase = await createAdminClient()
     let nous = 0
 
     // E-Tauler
     try {
       nous += await scrapeRSS(
         'https://tauler.seu-e.cat/api/rss?ens=1704860009&locale=ca&page=1',
-        'E-Tauler', 'ANUNCI', supabase
+        'E-Tauler', 'ANUNCI', adminSupabase
       )
     } catch (e) { console.error('Error E-Tauler:', e) }
 
@@ -60,7 +61,7 @@ export async function POST() {
     try {
       nous += await scrapeRSS(
         'https://ciutada.platjadaro.com/feed/',
-        'Ajuntament', 'NOTÍCIA', supabase
+        'Ajuntament', 'NOTÍCIA', adminSupabase
       )
     } catch (e) { console.error('Error Ajuntament:', e) }
 
@@ -93,7 +94,7 @@ export async function POST() {
 
         const classificacio = importVal > 50000 ? 'URGENT' : importVal > 10000 ? 'IMPORTANT' : 'INFORMATIU'
 
-        const { error } = await supabase.from('monitoratge').insert({
+        const { error } = await adminSupabase.from('monitoratge').insert({
           titol,
           resum: `Import: ${importVal}€`,
           font: 'Perfil Contractant',
