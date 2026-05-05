@@ -24,7 +24,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
   const [saving, setSaving] = useState(false)
   const [resum, setResum] = useState(doc.resum || '')
   const [loadingResum, setLoadingResum] = useState(false)
-  const [estat, setEstat] = useState(doc.estat_seguiment || 'pendent')
+  const [estat, setEstat] = useState<string>(doc.estat_seguiment || 'pendent')
   const [savingEstat, setSavingEstat] = useState(false)
 
   async function generarResum() {
@@ -68,7 +68,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
       setEstat(nouEstat)
       toast.success('Estat actualitzat.')
       if (nouEstat === 'arxivat') {
-        setTimeout(() => onClose(), 500)
+        setTimeout(() => onClose(), 800)
       }
     }
   }
@@ -84,8 +84,6 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
     if (error) toast.error('Error guardant les observacions.')
     else toast.success('Observacions guardades.')
   }
-
-  const estatActual = ESTATS.find(e => e.value === estat)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -136,7 +134,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
           {/* Resum IA */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Resum IA</h4>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Anàlisi IA</h4>
               <button
                 onClick={generarResum}
                 disabled={loadingResum}
@@ -150,7 +148,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
               <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{resum}</p>
             ) : (
               <p className="text-sm text-slate-400 italic">
-                Clica "Analitzar amb IA" per obtenir un resum, dates, imports i punts clau.
+                Clica "Analitzar amb IA" per obtenir un resum, dates, imports i punts clau del document.
               </p>
             )}
           </div>
