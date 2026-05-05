@@ -12,11 +12,12 @@ export async function POST() {
     })
     const xml = await res.text()
 
-    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
+    const regex = /<item>([\s\S]*?)<\/item>/g
+    let match
     let nous = 0
 
-    for (const item of items) {
-      const content = item[1]
+    while ((match = regex.exec(xml)) !== null) {
+      const content = match[1]
       const titol = content.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
         || content.match(/<title>(.*?)<\/title>/)?.[1] || 'Sense títol'
       const url = content.match(/<link>(.*?)<\/link>/)?.[1]
@@ -28,14 +29,14 @@ export async function POST() {
       if (!url) continue
 
       const { error } = await supabase.from('monitoratge').insert({
-        titol: titol.trim(),
+        titol: titol.trim().slice(0, 300),
         resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
         font: 'E-Tauler',
         tipus_document: 'ANUNCI',
         classificacio: 'INFORMATIU',
         url_original: url.trim(),
         data_publicacio: dataStr ? new Date(dataStr).toISOString() : new Date().toISOString(),
-      }).select()
+      })
 
       if (!error) nous++
     }
