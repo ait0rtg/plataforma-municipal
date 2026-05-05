@@ -15,7 +15,7 @@ export async function POST() {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       })
       const xml = await res.text()
-      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
+      const items = Array.from(xml.matchAll(/<item>([\s\S]*?)<\/item>/g))
 
       for (const item of items) {
         const content = item[1]
