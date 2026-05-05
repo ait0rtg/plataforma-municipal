@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X, ExternalLink } from 'lucide-react'
+import { X, ExternalLink, Sparkles } from 'lucide-react'
 import { formatData, formatImport, colorVenciment } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
@@ -15,6 +15,28 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
 }) {
   const [observacions, setObservacions] = useState(doc.observacions || '')
   const [saving, setSaving] = useState(false)
+  const [resum, setResum] = useState(doc.resum || '')
+  const [loadingResum, setLoadingResum] = useState(false)
+
+  async function generarResum() {
+    setLoadingResum(true)
+    try {
+      const res = await fetch('/api/documents/resum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: doc.id, titol: doc.titol, contingut: doc.contingut_text || doc.resum || '' }),
+      })
+      const data = await res.json()
+      if (data.resum) {
+        setResum(data.resum)
+        toast.success('Resum generat correctament.')
+      }
+    } catch {
+      toast.error('Error generant el resum.')
+    } finally {
+      setLoadingResum(false)
+    }
+  }
 
   async function save() {
     setSaving(true)
@@ -43,12 +65,25 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
         </div>
 
         <div className="p-6 space-y-4">
-          {doc.resum && (
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Resum IA</h4>
-              <p className="text-sm text-slate-700 leading-relaxed">{doc.resum}</p>
+          {/* Resum IA */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Resum IA</h4>
+              <button
+                onClick={generarResum}
+                disabled={loadingResum}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" />
+                {loadingResum ? 'Generant...' : 'Generar resum'}
+              </button>
             </div>
-          )}
+            {resum ? (
+              <p className="text-sm text-slate-700 leading-relaxed">{resum}</p>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Clica "Generar resum" per obtenir un resum amb IA.</p>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="bg-slate-50 rounded-lg p-3">
@@ -89,7 +124,6 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
             </div>
           )}
 
-          {/* Observacions — editable per TOTS els usuaris */}
           <div>
             <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
               Observacions{' '}
