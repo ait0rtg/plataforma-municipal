@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       messages: [
         {
           role: 'system',
-          content: `Ets un assistent polític. Fes un resum concís en màxim 10 línies del document municipal. Respon en català. Destaca els punts clau i les implicacions polítiques si n'hi ha.`
+          content: 'Ets un assistent polític. Fes un resum concís en màxim 10 línies del document municipal. Respon en català. Destaca els punts clau i les implicacions polítiques si n\'hi ha.'
         },
         {
           role: 'user',
@@ -28,9 +28,7 @@ export async function POST(req: Request) {
     })
 
     const resum = completion.choices[0].message.content || ''
-
     await supabase.from('monitoratge').update({ resum }).eq('id', id)
-
     return NextResponse.json({ resum })
   } catch (error) {
     console.error('Error resum:', error)
