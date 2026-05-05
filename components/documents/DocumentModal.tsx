@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X, ExternalLink, Sparkles } from 'lucide-react'
+import { X, ExternalLink, Sparkles, Archive } from 'lucide-react'
 import { formatData, formatImport, colorVenciment } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
@@ -10,6 +10,13 @@ import type { Document } from '@/types'
 const classifVariant = (c?: string) =>
   (c === 'URGENT' ? 'urgent' : c === 'IMPORTANT' ? 'important' : 'informatiu') as 'urgent' | 'important' | 'informatiu'
 
+const ESTATS = [
+  { value: 'pendent', label: 'Pendent', color: 'bg-orange-100 text-orange-700' },
+  { value: 'en_curs', label: 'En curs', color: 'bg-blue-100 text-blue-700' },
+  { value: 'tancat', label: 'Tancat', color: 'bg-green-100 text-green-700' },
+  { value: 'arxivat', label: 'Arxivat', color: 'bg-slate-100 text-slate-500' },
+]
+
 export default function DocumentModal({ doc, isAdmin, onClose }: {
   doc: Document; isAdmin: boolean; onClose: () => void
 }) {
@@ -17,6 +24,8 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
   const [saving, setSaving] = useState(false)
   const [resum, setResum] = useState(doc.resum || '')
   const [loadingResum, setLoadingResum] = useState(false)
+  const [estat, setEstat] = useState(doc.estat_seguiment || 'pendent')
+  const [savingEstat, setSavingEstat] = useState(false)
 
   async function generarResum() {
     setLoadingResum(true)
@@ -27,29 +36,56 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
         body: JSON.stringify({
           id: doc.id,
           titol: doc.titol,
-          contingut: doc.contingut_complet || doc.resum || ''
+          contingut: doc.contingut_complet || doc.resum || '',
+          url: doc.url_original,
         }),
       })
       const data = await res.json()
       if (data.resum) {
         setResum(data.resum)
         toast.success('Resum generat correctament.')
+      } else {
+        toast.error('Error generant el resum.')
       }
     } catch {
-      toast.error('Error generant el resum.')
+      toast.error('Error de connexió.')
     } finally {
       setLoadingResum(false)
+    }
+  }
+
+  async function handleEstat(nouEstat: string) {
+    setSavingEstat(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('monitoratge')
+      .update({ estat_seguiment: nouEstat })
+      .eq('id', doc.id)
+    setSavingEstat(false)
+    if (error) {
+      toast.error('Error guardant l\'estat.')
+    } else {
+      setEstat(nouEstat)
+      toast.success('Estat actualitzat.')
+      if (nouEstat === 'arxivat') {
+        setTimeout(() => onClose(), 500)
+      }
     }
   }
 
   async function save() {
     setSaving(true)
     const supabase = createClient()
-    const { error } = await supabase.from('monitoratge').update({ observacions }).eq('id', doc.id)
+    const { error } = await supabase
+      .from('monitoratge')
+      .update({ observacions })
+      .eq('id', doc.id)
     setSaving(false)
     if (error) toast.error('Error guardant les observacions.')
     else toast.success('Observacions guardades.')
   }
+
+  const estatActual = ESTATS.find(e => e.value === estat)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -57,7 +93,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
         onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between p-6 border-b border-slate-100">
           <div className="flex-1 min-w-0 pr-4">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Badge variant={classifVariant(doc.classificacio)}>{doc.classificacio}</Badge>
               <span className="text-xs text-slate-400">{doc.font}</span>
             </div>
@@ -69,6 +105,34 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
         </div>
 
         <div className="p-6 space-y-4">
+
+          {/* Estat */}
+          <div>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Estat del document</h4>
+            <div className="flex gap-2 flex-wrap">
+              {ESTATS.map(e => (
+                <button
+                  key={e.value}
+                  onClick={() => handleEstat(e.value)}
+                  disabled={savingEstat}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
+                    estat === e.value
+                      ? `${e.color} border-current scale-105`
+                      : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                  }`}
+                >
+                  {e.value === 'arxivat' && <Archive className="w-3 h-3" />}
+                  {e.label}
+                </button>
+              ))}
+            </div>
+            {estat === 'arxivat' && (
+              <p className="text-xs text-slate-400 mt-1.5">
+                Aquest document s'arxivarà i no apareixerà a la llista principal.
+              </p>
+            )}
+          </div>
+
           {/* Resum IA */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -79,13 +143,15 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
                 className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50 transition-colors"
               >
                 <Sparkles className="w-3 h-3" />
-                {loadingResum ? 'Generant...' : 'Generar resum'}
+                {loadingResum ? 'Analitzant...' : 'Analitzar amb IA'}
               </button>
             </div>
             {resum ? (
-              <p className="text-sm text-slate-700 leading-relaxed">{resum}</p>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{resum}</p>
             ) : (
-              <p className="text-sm text-slate-400 italic">Clica "Generar resum" per obtenir un resum amb IA.</p>
+              <p className="text-sm text-slate-400 italic">
+                Clica "Analitzar amb IA" per obtenir un resum, dates, imports i punts clau.
+              </p>
             )}
           </div>
 
@@ -121,17 +187,10 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
             </div>
           )}
 
-          {doc.pregunta_ple_suggerida && (
-            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
-              <div className="text-xs font-semibold text-purple-600 mb-1">Pregunta de ple suggerida</div>
-              <p className="text-sm text-purple-900">{doc.pregunta_ple_suggerida}</p>
-            </div>
-          )}
-
           <div>
             <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
-              Observacions{' '}
-              <span className="text-green-600 font-normal normal-case">(editable per tots els usuaris)</span>
+              Observacions
+              <span className="text-green-600 font-normal normal-case ml-1">(editable per tots)</span>
             </h4>
             <textarea
               value={observacions}
