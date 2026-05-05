@@ -24,7 +24,11 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
       const res = await fetch('/api/documents/resum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: doc.id, titol: doc.titol, contingut: doc.contingut_text || doc.resum || '' }),
+        body: JSON.stringify({
+          id: doc.id,
+          titol: doc.titol,
+          contingut: doc.contingut_complet || doc.resum || ''
+        }),
       })
       const data = await res.json()
       if (data.resum) {
