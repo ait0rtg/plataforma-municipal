@@ -1,6 +1,45 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+function extractTag(xml: string, tag: string): string {
+  const cdataMatch = xml.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`))
+  if (cdataMatch) return cdataMatch[1].trim()
+  const plainMatch = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`))
+  if (plainMatch) return plainMatch[1].trim()
+  return ''
+}
+
+async function scrapeRSS(url: string, font: string, tipus: string, supabase: any) {
+  let nous = 0
+  const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+  const xml = await res.text()
+  const regex = /<item>([\s\S]*?)<\/item>/g
+  let match
+
+  while ((match = regex.exec(xml)) !== null) {
+    const content = match[1]
+    const titol = extractTag(content, 'title')
+    const url_original = extractTag(content, 'link') || extractTag(content, 'guid')
+    const dataStr = extractTag(content, 'pubDate')
+    const descripcio = extractTag(content, 'description')
+
+    if (!url_original || !titol) continue
+
+    const { error } = await supabase.from('monitoratge').insert({
+      titol: titol.slice(0, 300),
+      resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
+      font,
+      tipus_document: tipus,
+      classificacio: 'INFORMATIU',
+      url_original: url_original.trim(),
+      data_publicacio: dataStr ? new Date(dataStr).toISOString() : new Date().toISOString(),
+    })
+
+    if (!error) nous++
+  }
+  return nous
+}
+
 export async function POST() {
   try {
     const supabase = await createClient()
@@ -9,87 +48,28 @@ export async function POST() {
 
     let nous = 0
 
-    // --- SCRAPER 1: E-Tauler RSS ---
+    // E-Tauler
     try {
-      const res = await fetch('https://tauler.seu-e.cat/api/rss?ens=1704860009&locale=ca&page=1', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      })
-      const xml = await res.text()
-      const regex = /<item>([\s\S]*?)<\/item>/g
-      let match
+      nous += await scrapeRSS(
+        'https://tauler.seu-e.cat/api/rss?ens=1704860009&locale=ca&page=1',
+        'E-Tauler', 'ANUNCI', supabase
+      )
+    } catch (e) { console.error('Error E-Tauler:', e) }
 
-      while ((match = regex.exec(xml)) !== null) {
-        const content = match[1]
-        const titol = content.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
-          || content.match(/<title>(.*?)<\/title>/)?.[1] || 'Sense títol'
-        const url = content.match(/<link>(.*?)<\/link>/)?.[1]
-          || content.match(/<guid>(.*?)<\/guid>/)?.[1] || ''
-        const dataStr = content.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || ''
-        const descripcio = content.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1]
-          || content.match(/<description>(.*?)<\/description>/)?.[1] || ''
-
-        if (!url) continue
-
-        const { error } = await supabase.from('monitoratge').insert({
-          titol: titol.trim().slice(0, 300),
-          resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
-          font: 'E-Tauler',
-          tipus_document: 'ANUNCI',
-          classificacio: 'INFORMATIU',
-          url_original: url.trim(),
-          data_publicacio: dataStr ? new Date(dataStr).toISOString() : new Date().toISOString(),
-        })
-
-        if (!error) nous++
-      }
-    } catch (e) {
-      console.error('Error E-Tauler:', e)
-    }
-
-    // --- SCRAPER 2: Web Ajuntament RSS ---
+    // Ajuntament
     try {
-      const res = await fetch('https://ciutada.platjadaro.com/feed/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      })
-      const xml = await res.text()
-      const regex = /<item>([\s\S]*?)<\/item>/g
-      let match
+      nous += await scrapeRSS(
+        'https://ciutada.platjadaro.com/feed/',
+        'Ajuntament', 'NOTÍCIA', supabase
+      )
+    } catch (e) { console.error('Error Ajuntament:', e) }
 
-      while ((match = regex.exec(xml)) !== null) {
-        const content = match[1]
-        const titol = content.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1]
-          || content.match(/<title>(.*?)<\/title>/)?.[1] || 'Sense títol'
-        const url = content.match(/<link>(.*?)<\/link>/)?.[1]
-          || content.match(/<guid>(.*?)<\/guid>/)?.[1] || ''
-        const dataStr = content.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || ''
-        const descripcio = content.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1]
-          || content.match(/<description>(.*?)<\/description>/)?.[1] || ''
-
-        if (!url) continue
-
-        const { error } = await supabase.from('monitoratge').insert({
-          titol: titol.trim().slice(0, 300),
-          resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
-          font: 'Ajuntament',
-          tipus_document: 'NOTÍCIA',
-          classificacio: 'INFORMATIU',
-          url_original: url.trim(),
-          data_publicacio: dataStr ? new Date(dataStr).toISOString() : new Date().toISOString(),
-        })
-
-        if (!error) nous++
-      }
-    } catch (e) {
-      console.error('Error Ajuntament RSS:', e)
-    }
-
-    // --- SCRAPER 3: Perfil Contractant ---
+    // Perfil Contractant
     try {
       const res = await fetch('https://contractaciopublica.cat/ca/perfils-contractant/detall/3156875?categoria=0', {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       })
       const html = await res.text()
-
       const regex = /<tr[^>]*>([\s\S]*?)<\/tr>/g
       let match
 
@@ -97,14 +77,14 @@ export async function POST() {
         const row = match[1]
         if (!row.includes('<td')) continue
 
-        const cols = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)).map(m =>
+        const cols = Array.from(row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)).map((m: RegExpExecArray) =>
           m[1].replace(/<[^>]*>/g, '').trim()
         )
 
         if (cols.length < 2 || !cols[0]) continue
 
         const titol = cols[0].slice(0, 300)
-        const importStr = cols.find(c => /\d+[\.,]\d+/.test(c)) || ''
+        const importStr = cols.find((c: string) => /\d+[\.,]\d+/.test(c)) || ''
         const importVal = parseFloat(importStr.replace(/[^\d,.]/g, '').replace(',', '.')) || 0
         const urlMatch = row.match(/href="([^"]+)"/)
         const urlDoc = urlMatch
@@ -127,9 +107,7 @@ export async function POST() {
 
         if (!error) nous++
       }
-    } catch (e) {
-      console.error('Error Contractant:', e)
-    }
+    } catch (e) { console.error('Error Contractant:', e) }
 
     return NextResponse.json({ ok: true, nous })
   } catch (error) {
