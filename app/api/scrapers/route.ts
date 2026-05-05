@@ -110,30 +110,44 @@ export async function POST() {
       }
     } catch (e) { console.error('Error Contractant:', e) }
 
-    // Acords Junta de Govern
+    // Acords Junta de Govern — via WordPress API
     try {
-      const res = await fetch('https://ciutada.platjadaro.com/ajuntament/organitzacio-municipal/junta-de-govern/acords-de-junta-de-govern/', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      })
-      const html = await res.text()
-      const regex = /<a[^>]+href="([^"]+acords[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
-      let match
+      let page = 1
+      let continuar = true
 
-      while ((match = regex.exec(html)) !== null) {
-        const url = match[1].startsWith('http') ? match[1] : `https://ciutada.platjadaro.com${match[1]}`
-        const titol = match[2].replace(/<[^>]*>/g, '').trim()
-        if (!titol || titol.length < 5) continue
+      while (continuar) {
+        const res = await fetch(
+          `https://ciutada.platjadaro.com/wp-json/wp/v2/media?search=ACTA-JGL&per_page=100&page=${page}&mime_type=application/pdf&orderby=date&order=desc`,
+          { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        )
 
-        const { error } = await adminSupabase.from('monitoratge').insert({
-          titol: titol.slice(0, 300),
-          font: 'Junta de Govern',
-          tipus_document: 'ACORD',
-          classificacio: 'IMPORTANT',
-          url_original: url,
-          data_publicacio: new Date().toISOString(),
-          tema_principal: 'GOVERN',
-        })
-        if (!error) nous++
+        if (!res.ok) break
+        const items = await res.json()
+        if (!items.length) break
+
+        for (const item of items) {
+          const titol = item.title?.rendered || 'Acord JGL'
+          const url = item.source_url
+          const data = item.date || new Date().toISOString()
+
+          if (!url) continue
+
+          const { error } = await adminSupabase.from('monitoratge').insert({
+            titol: titol.slice(0, 300),
+            resum: `Acta de la Junta de Govern Local de ${new Date(data).toLocaleDateString('ca-ES')}`,
+            font: 'Junta de Govern',
+            tipus_document: 'ACORD',
+            classificacio: 'IMPORTANT',
+            url_original: url,
+            data_publicacio: new Date(data).toISOString(),
+            tema_principal: 'GOVERN',
+          })
+
+          if (!error) nous++
+        }
+
+        if (items.length < 100) continuar = false
+        else page++
       }
     } catch (e) { console.error('Error Junta Govern:', e) }
 
