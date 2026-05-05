@@ -11,7 +11,7 @@ export async function POST() {
 
     // --- SCRAPER 1: E-Tauler RSS ---
     try {
-      const res = await fetch('https://tauler.seu-e.cat/rss?idEns=1704860009', {
+      const res = await fetch('https://tauler.seu-e.cat/api/rss?ens=1704860009&locale=ca&page=1', {
         headers: { 'User-Agent': 'Mozilla/5.0' }
       })
       const xml = await res.text()
