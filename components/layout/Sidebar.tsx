@@ -17,6 +17,7 @@ const NAV = [
   { href: '/assessor', label: 'Assessor IA', icon: MessageSquare },
   { href: '/compromisos', label: 'Compromisos', icon: Target },
   { href: '/analisi', label: 'Anàlisi', icon: BarChart3 },
+  { href: '/preguntes-ple', label: 'Preguntes pel Ple', icon: MessageSquarePlus },
 ]
 
 export default function Sidebar({ userEmail, userName }: { userEmail: string; userName: string }) {
