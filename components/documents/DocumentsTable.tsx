@@ -2,63 +2,67 @@
 import { useState } from 'react'
 import { formatData, colorVenciment, isAdmin, truncate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { ExternalLink, Archive, ChevronFirst, ChevronLast } from 'lucide-react'
+import { ExternalLink, ChevronFirst, ChevronLast } from 'lucide-react'
 import DocumentModal from './DocumentModal'
 import type { Document } from '@/types'
 
 const classifVariant = (c?: string) =>
   (c === 'URGENT' ? 'urgent' : c === 'IMPORTANT' ? 'important' : 'informatiu') as 'urgent' | 'important' | 'informatiu'
 
-export default function DocumentsTable({ documents, total, page, limit, userEmail }: {
-  documents: Document[]; total: number; page: number; limit: number; userEmail?: string
-}) {
-  const [selected, setSelected] = useState<Document | null>(null)
-  const [arxivats, setArxivats] = useState<string[]>([])
-  const [confirmArxiu, setConfirmArxiu] = useState<string | null>(null)
-  const admin = isAdmin(userEmail)
-  const totalPages = Math.ceil(total / limit)
+function Paginacio({ page, totalPages }: { page: number; totalPages: number }) {
+  const pages: (number | string)[] = []
 
-  async function handleArxivar(id: string) {
-    const res = await fetch('/api/documents/arxivar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    if (res.ok) {
-      setArxivats(prev => [...prev, id])
-      setConfirmArxiu(null)
-    }
+  pages.push(1)
+  if (page > 3) pages.push('...')
+  for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+    pages.push(i)
   }
+  if (page < totalPages - 2) pages.push('...')
+  if (totalPages > 1) pages.push(totalPages)
 
-  const visibles = documents.filter(d => !arxivats.includes(d.id))
-
-  const Paginacio = () => (
+  return (
     <div className="flex items-center gap-1">
       <a href="?page=1"
-        className={`p-1.5 text-xs rounded hover:bg-slate-200 ${page === 1 ? 'opacity-30 pointer-events-none' : 'bg-slate-100'}`}>
+        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === 1 ? 'opacity-30 pointer-events-none' : ''}`}>
         <ChevronFirst className="w-3.5 h-3.5" />
       </a>
-      {page > 2 && <a href={`?page=${page - 2}`} className="px-2 py-1 text-xs bg-slate-100 rounded hover:bg-slate-200">{page - 2}</a>}
-      {page > 1 && <a href={`?page=${page - 1}`} className="px-2 py-1 text-xs bg-slate-100 rounded hover:bg-slate-200">{page - 1}</a>}
-      <span className="px-2 py-1 text-xs bg-blue-600 text-white rounded font-medium">{page}</span>
-      {page < totalPages && <a href={`?page=${page + 1}`} className="px-2 py-1 text-xs bg-slate-100 rounded hover:bg-slate-200">{page + 1}</a>}
-      {page < totalPages - 1 && <a href={`?page=${page + 2}`} className="px-2 py-1 text-xs bg-slate-100 rounded hover:bg-slate-200">{page + 2}</a>}
-      {totalPages > 3 && page < totalPages - 2 && <span className="text-xs text-slate-400">...</span>}
-      {page < totalPages - 2 && <a href={`?page=${totalPages}`} className="px-2 py-1 text-xs bg-slate-100 rounded hover:bg-slate-200">{totalPages}</a>}
+      {pages.map((p, i) =>
+        p === '...' ? (
+          <span key={`dots-${i}`} className="px-1 text-xs text-slate-400">...</span>
+        ) : (
+          <a key={p} href={`?page=${p}`}
+            className={`px-2.5 py-1 text-xs rounded transition-colors ${
+              page === p
+                ? 'bg-blue-600 text-white font-medium'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+            }`}>
+            {p}
+          </a>
+        )
+      )}
       <a href={`?page=${totalPages}`}
-        className={`p-1.5 text-xs rounded hover:bg-slate-200 ${page === totalPages ? 'opacity-30 pointer-events-none' : 'bg-slate-100'}`}>
+        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === totalPages ? 'opacity-30 pointer-events-none' : ''}`}>
         <ChevronLast className="w-3.5 h-3.5" />
       </a>
     </div>
   )
+}
+
+export default function DocumentsTable({ documents, total, page, limit, userEmail }: {
+  documents: Document[]; total: number; page: number; limit: number; userEmail?: string
+}) {
+  const [selected, setSelected] = useState<Document | null>(null)
+  const admin = isAdmin(userEmail)
+  const totalPages = Math.ceil(total / limit)
 
   return (
     <>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+
         {/* Paginació DALT */}
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-xs text-slate-400">{total} documents · pàgina {page} de {totalPages}</span>
-          <Paginacio />
+        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <span className="text-xs text-slate-400">{total} documents · pàg. {page}/{totalPages}</span>
+          <Paginacio page={page} totalPages={totalPages} />
         </div>
 
         <table className="w-full text-sm">
@@ -68,12 +72,18 @@ export default function DocumentsTable({ documents, total, page, limit, userEmai
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Font</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nivell</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Data</th>
-              {admin && <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Arxiu</th>}
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {visibles.map(doc => (
+            {documents.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center text-slate-400 text-sm">
+                  No hi ha documents.
+                </td>
+              </tr>
+            )}
+            {documents.map(doc => (
               <tr key={doc.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setSelected(doc)}>
                 <td className="px-4 py-3">
                   <div className="font-medium text-slate-800 truncate max-w-xs">{doc.titol || '(sense títol)'}</div>
@@ -86,28 +96,6 @@ export default function DocumentsTable({ documents, total, page, limit, userEmai
                 <td className="px-4 py-3 text-xs text-slate-400 hidden lg:table-cell">
                   {formatData(doc.data_deteccio)}
                 </td>
-                {admin && (
-                  <td className="px-4 py-3 hidden lg:table-cell" onClick={e => e.stopPropagation()}>
-                    {confirmArxiu === doc.id ? (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleArxivar(doc.id)}
-                          className="px-2 py-0.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600">
-                          Confirmar
-                        </button>
-                        <button onClick={() => setConfirmArxiu(null)}
-                          className="px-2 py-0.5 text-xs bg-slate-100 rounded hover:bg-slate-200">
-                          Cancel·lar
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setConfirmArxiu(doc.id)}
-                        className="flex items-center gap-1 px-2 py-0.5 text-xs text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors">
-                        <Archive className="w-3.5 h-3.5" />
-                        Arxivar
-                      </button>
-                    )}
-                  </td>
-                )}
                 <td className="px-4 py-3">
                   <a href={doc.url_original} target="_blank" rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
@@ -121,13 +109,19 @@ export default function DocumentsTable({ documents, total, page, limit, userEmai
         </table>
 
         {/* Paginació BAIX */}
-        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+        <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
           <span className="text-xs text-slate-400">{total} documents</span>
-          <Paginacio />
+          <Paginacio page={page} totalPages={totalPages} />
         </div>
       </div>
 
-      {selected && <DocumentModal doc={selected} isAdmin={admin} onClose={() => setSelected(null)} />}
+      {selected && (
+        <DocumentModal
+          doc={selected}
+          isAdmin={admin}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </>
   )
 }
