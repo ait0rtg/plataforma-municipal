@@ -16,12 +16,17 @@ export default async function DocumentsPage({
   const page = parseInt(params.page || '1')
   const limit = 25
   const offset = (page - 1) * limit
+  const mostrarArxivats = params.arxivats === '1'
 
   let query = supabase
     .from('monitoratge')
     .select('*', { count: 'exact' })
     .order('data_publicacio', { ascending: false })
     .range(offset, offset + limit - 1)
+
+  if (!mostrarArxivats) {
+    query = query.neq('estat_seguiment', 'tancat')
+  }
 
   if (params.classificacio) query = query.eq('classificacio', params.classificacio)
   if (params.font) query = query.eq('font', params.font)
@@ -41,14 +46,30 @@ export default async function DocumentsPage({
           <p className="text-sm text-slate-500">{count || 0} documents trobats</p>
         </div>
         <div className="flex items-center gap-3">
+          
+            href={mostrarArxivats ? '/documents' : '/documents?arxivats=1'}
+            className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+              mostrarArxivats
+                ? 'bg-orange-100 text-orange-700 border-orange-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+            }`}
+          >
+            {mostrarArxivats ? 'Amagar arxivats' : 'Veure arxivats'}
+          </a>
           <ActualitzarButton />
-          <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline flex items-center gap-1">
+          <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline">
             Exportar CSV
           </a>
         </div>
       </div>
       <DocumentsFilters />
-      <DocumentsTable documents={documents || []} total={count || 0} page={page} limit={limit} userEmail={user?.email} />
+      <DocumentsTable
+        documents={documents || []}
+        total={count || 0}
+        page={page}
+        limit={limit}
+        userEmail={user?.email}
+      />
     </div>
   )
 }
