@@ -11,7 +11,7 @@ interface AssistentResult {
   imports_contractes: string
   vulnerabilitats: string
   preguntes_suggerides: string[]
-  documents_font: { titol: string; url: string }[]
+  documents_font: { titol: string; url: string; data?: string }[]
 }
 
 const EXEMPLES = [
@@ -39,13 +39,14 @@ export default function AssistentPage() {
       const res = await fetch('/api/assistent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pregunta, idioma }),
+        body: JSON.stringify({ consulta: pregunta, idioma }),
       })
       if (!res.ok) throw new Error('Error en la consulta')
       const data = await res.json()
+      if (data.error) throw new Error(data.error)
       setResult(data)
-    } catch {
-      toast.error('Error en la consulta. Torna-ho a intentar.')
+    } catch (err: any) {
+      toast.error(err.message || 'Error en la consulta. Torna-ho a intentar.')
     } finally {
       setLoading(false)
     }
@@ -63,17 +64,20 @@ export default function AssistentPage() {
         </p>
       </div>
 
-      {/* Search box */}
+      {/* Caixa de cerca */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <div className="flex gap-2 mb-3">
-          <button onClick={() => setIdioma('ca')}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${idioma === 'ca' ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'}`}>
-            Català
-          </button>
-          <button onClick={() => setIdioma('es')}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${idioma === 'es' ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'}`}>
-            Castellà
-          </button>
+          {(['ca', 'es'] as const).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setIdioma(lang)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                idioma === lang ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {lang === 'ca' ? 'Català' : 'Castellà'}
+            </button>
+          ))}
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -90,20 +94,24 @@ export default function AssistentPage() {
           <button
             onClick={() => handleQuery()}
             disabled={loading || !query.trim()}
-            className="px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap">
+            className="px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+          >
             {loading ? 'Analitzant...' : 'Consultar'}
           </button>
         </div>
       </div>
 
-      {/* Examples */}
+      {/* Exemples */}
       {!result && !loading && (
         <div>
           <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Exemples de consultes</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {EXEMPLES.map((ex, i) => (
-              <button key={i} onClick={() => { setQuery(ex); handleQuery(ex) }}
-                className="text-left px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+              <button
+                key={i}
+                onClick={() => { setQuery(ex); handleQuery(ex) }}
+                className="text-left px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
                 {ex}
               </button>
             ))}
@@ -111,7 +119,7 @@ export default function AssistentPage() {
         </div>
       )}
 
-      {/* Loading */}
+      {/* Carregant */}
       {loading && (
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
           <div className="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-3" />
@@ -119,17 +127,15 @@ export default function AssistentPage() {
         </div>
       )}
 
-      {/* Result */}
+      {/* Resultat */}
       {result && (
         <div className="space-y-4">
-          {/* Resum executiu */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
             <h3 className="font-semibold text-blue-900 text-sm uppercase tracking-wide mb-2">Resum executiu</h3>
             <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{result.resum_executiu}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Antecedents */}
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-1.5 mb-3">
                 <FileText className="w-4 h-4 text-slate-400" />
@@ -138,7 +144,6 @@ export default function AssistentPage() {
               <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{result.antecedents}</p>
             </div>
 
-            {/* Acords vigents */}
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-1.5 mb-3">
                 <FileText className="w-4 h-4 text-green-500" />
@@ -147,7 +152,6 @@ export default function AssistentPage() {
               <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{result.acords_vigents}</p>
             </div>
 
-            {/* Imports */}
             <div className="bg-white border border-slate-200 rounded-xl p-5">
               <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-1.5 mb-3">
                 <FileText className="w-4 h-4 text-orange-400" />
@@ -156,7 +160,6 @@ export default function AssistentPage() {
               <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{result.imports_contractes}</p>
             </div>
 
-            {/* Vulnerabilitats */}
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
               <h3 className="font-semibold text-orange-800 text-sm flex items-center gap-1.5 mb-3">
                 <AlertTriangle className="w-4 h-4 text-orange-500" />
@@ -166,14 +169,13 @@ export default function AssistentPage() {
             </div>
           </div>
 
-          {/* Preguntes suggerides */}
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-1.5 mb-3">
               <HelpCircle className="w-4 h-4 text-blue-500" />
               Preguntes suggerides per al ple
             </h3>
             <ol className="space-y-2">
-              {result.preguntes_suggerides.map((q, i) => (
+              {result.preguntes_suggerides?.map((q, i) => (
                 <li key={i} className="flex gap-2 text-sm text-slate-700">
                   <span className="font-semibold text-blue-600 min-w-[20px]">{i + 1}.</span>
                   {q}
@@ -182,7 +184,6 @@ export default function AssistentPage() {
             </ol>
           </div>
 
-          {/* Documents font */}
           {result.documents_font?.length > 0 && (
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
               <h3 className="font-semibold text-slate-600 text-xs uppercase tracking-wide mb-3">
@@ -198,14 +199,17 @@ export default function AssistentPage() {
                     ) : (
                       <span className="text-xs text-slate-500 truncate">{doc.titol}</span>
                     )}
+                    {doc.data && <span className="text-xs text-slate-400 flex-shrink-0">{doc.data}</span>}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <button onClick={() => { setResult(null); setQuery('') }}
-            className="text-sm text-slate-500 hover:text-slate-700 underline">
+          <button
+            onClick={() => { setResult(null); setQuery('') }}
+            className="text-sm text-slate-500 hover:text-slate-700 underline"
+          >
             Nova consulta
           </button>
         </div>
