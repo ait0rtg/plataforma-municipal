@@ -215,7 +215,7 @@ Genera un informe de preparació en format JSON (respon NOMÉS el JSON, sense te
     // Afegir metadades útils
     resultat._meta = {
       documents_consultats: documents.length,
-      fonts_consultades: [...new Set(documents.map((d: any) => d.font))],
+      fonts_consultades: Array.from(new Set(documents.map((d: any) => d.font))),
       data_consulta: new Date().toISOString(),
     }
 
