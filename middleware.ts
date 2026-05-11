@@ -1,49 +1,33 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    }
+  const isPublicRoute =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/cron') ||
+    pathname === '/favicon.ico'
+
+  if (isPublicRoute) return NextResponse.next()
+
+  // Llegir cookie de sessió de Supabase directament
+  // Supabase guarda la sessió en cookies amb prefix sb-
+  const cookies = request.cookies.getAll()
+  const sessionCookie = cookies.find(c =>
+    c.name.includes('-auth-token') || c.name.startsWith('sb-')
   )
 
-  // Refrescar sessió — OBLIGATORI, no eliminar
-  const { data: { session } } = await supabase.auth.getSession()
-
-  const { pathname } = request.nextUrl
-  const isPublicRoute = pathname.startsWith('/login') ||
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/auth')
-
-  // Sense sessió i ruta protegida → login
-  if (!session && !isPublicRoute) {
+  if (!sessionCookie) {
     const url = new URL('/login', request.url)
     url.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(url)
   }
 
-  // Amb sessió i intentant anar a login → dashboard
-  if (session && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
