@@ -11,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   const userEmail = user.email || ''
-  const userName = user.user_metadata?.full_name || user.email || ''
+  const userName = user.user_metadata?.nom || user.user_metadata?.full_name || user.email || ''
 
   return (
     <div className="flex h-screen bg-slate-50">
