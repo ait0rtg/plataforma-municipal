@@ -22,37 +22,22 @@ export default async function DocumentsPage({
   let query = supabase
     .from('monitoratge')
     .select('*', { count: 'exact' })
-    .order('data_publicacio', { ascending: false })
+    .order('data_deteccio', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (!mostrarArxivats) {
     query = query.neq('estat_seguiment', 'tancat')
   }
-
-  if (params.classificacio) {
-    query = query.eq('classificacio', params.classificacio)
-  }
-  if (params.font) {
-    query = query.eq('font', params.font)
-  }
-  if (params.tema) {
-    query = query.eq('tema_principal', params.tema)
-  }
-  if (params.estat) {
-    query = query.eq('estat_seguiment', params.estat)
-  }
+  if (params.classificacio) query = query.eq('classificacio', params.classificacio)
+  if (params.font) query = query.eq('font', params.font)
+  if (params.tema) query = query.eq('tema_principal', params.tema)
+  if (params.estat) query = query.eq('estat_seguiment', params.estat)
   if (params.cerca) {
     const c = params.cerca
-    query = query.or('titol.ilike.%' + c + '%,resum.ilike.%' + c + '%')
+    query = query.or(`titol.ilike.%${c}%,resum.ilike.%${c}%`)
   }
 
   const { data: documents, count } = await query
-
-  const arxivatsBoto = mostrarArxivats ? '/documents' : '/documents?arxivats=1'
-  const arxivatsLabel = mostrarArxivats ? 'Amagar arxivats' : 'Veure arxivats'
-  const arxivatsClass = mostrarArxivats
-    ? 'text-sm px-3 py-1.5 rounded-lg border bg-orange-100 text-orange-700 border-orange-200'
-    : 'text-sm px-3 py-1.5 rounded-lg border bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
 
   return (
     <div className="space-y-4">
@@ -62,8 +47,15 @@ export default async function DocumentsPage({
           <p className="text-sm text-slate-500">{count || 0} documents trobats</p>
         </div>
         <div className="flex items-center gap-3">
-          <a href={arxivatsBoto} className={arxivatsClass}>
-            {arxivatsLabel}
+          <a
+            href={mostrarArxivats ? '/documents' : '/documents?arxivats=1'}
+            className={`text-sm px-3 py-1.5 rounded-lg border ${
+              mostrarArxivats
+                ? 'bg-orange-100 text-orange-700 border-orange-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+            }`}
+          >
+            {mostrarArxivats ? 'Amagar tancats' : 'Veure tancats'}
           </a>
           <ActualitzarButton />
           <a href="/api/documents/export" className="text-sm text-blue-600 hover:underline">
