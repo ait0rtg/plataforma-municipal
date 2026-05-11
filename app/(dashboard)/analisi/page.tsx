@@ -1,50 +1,92 @@
 import { createClient } from '@/lib/supabase/server'
+import AnalisiClient from '@/components/analisi/AnalisiClient'
 
 export default async function AnalisiPage() {
   const supabase = await createClient()
-  const { data: documents } = await supabase
-    .from('monitoratge')
-    .select('classificacio, tema_principal, font, import_detectat, data_deteccio')
-    .order('data_deteccio', { ascending: false })
 
-  const total = documents?.length || 0
-  const urgents = documents?.filter(d => d.classificacio === 'URGENT').length || 0
-  const importants = documents?.filter(d => d.classificacio === 'IMPORTANT').length || 0
-  const importTotal = documents?.reduce((acc, d) => acc + (d.import_detectat || 0), 0) || 0
+  const [
+    { data: documents },
+    { data: imports },
+    { data: compromisos },
+  ] = await Promise.all([
+    supabase.from('monitoratge')
+      .select('classificacio, tema_principal, font, import_detectat, data_deteccio, tipus_document, estat_seguiment')
+      .order('data_deteccio', { ascending: true }),
+    supabase.from('monitoratge')
+      .select('import_detectat, data_deteccio, titol, font, tema_principal')
+      .not('import_detectat', 'is', null)
+      .gt('import_detectat', 0)
+      .order('import_detectat', { ascending: false })
+      .limit(20),
+    supabase.from('compromisos')
+      .select('estat, tema, created_at')
+  ])
+
+  const docs = documents || []
+
+  // Stats generals
+  const total = docs.length
+  const urgents = docs.filter(d => d.classificacio === 'URGENT').length
+  const importants = docs.filter(d => d.classificacio === 'IMPORTANT').length
+  const importTotal = docs.reduce((acc, d) => acc + (d.import_detectat || 0), 0)
+  const pendents = docs.filter(d => d.estat_seguiment === 'pendent').length
+
+  // Evolució mensual
+  const byMonth: Record<string, { total: number; urgents: number; imports: number }> = {}
+  docs.forEach(d => {
+    if (!d.data_deteccio) return
+    const k = d.data_deteccio.substring(0, 7)
+    if (!byMonth[k]) byMonth[k] = { total: 0, urgents: 0, imports: 0 }
+    byMonth[k].total++
+    if (d.classificacio === 'URGENT') byMonth[k].urgents++
+    byMonth[k].imports += d.import_detectat || 0
+  })
+  const evolucioMensual = Object.entries(byMonth)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([mes, v]) => ({ mes: mes.substring(0, 7), ...v, imports: Math.round(v.imports) }))
+
+  // Per tema
+  const byTema: Record<string, { count: number; imports: number }> = {}
+  docs.forEach(d => {
+    const t = d.tema_principal || 'altres'
+    if (!byTema[t]) byTema[t] = { count: 0, imports: 0 }
+    byTema[t].count++
+    byTema[t].imports += d.import_detectat || 0
+  })
+  const perTema = Object.entries(byTema)
+    .sort(([, a], [, b]) => b.count - a.count)
+    .slice(0, 8)
+    .map(([tema, v]) => ({ tema, ...v, imports: Math.round(v.imports) }))
+
+  // Per font
+  const byFont: Record<string, number> = {}
+  docs.forEach(d => { if (d.font) byFont[d.font] = (byFont[d.font] || 0) + 1 })
+  const perFont = Object.entries(byFont).sort(([, a], [, b]) => b - a).map(([font, count]) => ({ font, count }))
+
+  // Top imports
+  const topImports = (imports || []).slice(0, 10).map(d => ({
+    titol: d.titol?.slice(0, 60) || 'N/D',
+    import_detectat: d.import_detectat,
+    font: d.font,
+    tema_principal: d.tema_principal,
+    data: d.data_deteccio?.split('T')[0],
+  }))
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Anàlisi</h1>
-        <p className="text-sm text-slate-500">Estadístiques generals del monitoratge</p>
+        <h1 className="text-2xl font-bold text-slate-800">Anàlisi de tendències</h1>
+        <p className="text-sm text-slate-500">Patrons, imports i evolució de l'activitat municipal</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-3xl font-bold text-slate-800">{total}</div>
-          <div className="text-sm text-slate-500 mt-1">Total documents</div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-3xl font-bold text-red-600">{urgents}</div>
-          <div className="text-sm text-slate-500 mt-1">Urgents</div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-3xl font-bold text-orange-500">{importants}</div>
-          <div className="text-sm text-slate-500 mt-1">Importants</div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="text-3xl font-bold text-blue-600">
-            {importTotal > 0 ? `${(importTotal / 1000).toFixed(0)}k€` : '—'}
-          </div>
-          <div className="text-sm text-slate-500 mt-1">Import total</div>
-        </div>
-      </div>
-
-      {total === 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-          <p className="text-slate-400">Encara no hi ha documents. Actualitza els documents des de la secció Documents.</p>
-        </div>
-      )}
+      <AnalisiClient
+        stats={{ total, urgents, importants, importTotal, pendents }}
+        evolucioMensual={evolucioMensual}
+        perTema={perTema}
+        perFont={perFont}
+        topImports={topImports}
+      />
     </div>
   )
 }
