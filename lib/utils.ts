@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { format, formatDistanceToNow, differenceInDays } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { ca } from 'date-fns/locale'
 
 export function cn(...inputs: ClassValue[]) {
@@ -9,17 +9,29 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatData(date: string | null | undefined, fmt = 'dd/MM/yyyy'): string {
   if (!date) return '—'
-  return format(new Date(date), fmt, { locale: ca })
+  try {
+    return format(new Date(date), fmt, { locale: ca })
+  } catch {
+    return '—'
+  }
 }
 
 export function formatDataHora(date: string | null | undefined): string {
   if (!date) return '—'
-  return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: ca })
+  try {
+    return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: ca })
+  } catch {
+    return '—'
+  }
 }
 
 export function diesRestants(date: string | null | undefined): number | null {
   if (!date) return null
-  return differenceInDays(new Date(date), new Date())
+  try {
+    return differenceInDays(new Date(date), new Date())
+  } catch {
+    return null
+  }
 }
 
 export function colorVenciment(date: string | null | undefined): string {
@@ -42,15 +54,17 @@ export function formatImport(amount: number | null | undefined): string {
 }
 
 export function truncate(str: string, maxLength: number): string {
+  if (!str) return ''
   if (str.length <= maxLength) return str
   return str.slice(0, maxLength) + '...'
 }
 
-export function isAdmin(email: string | undefined): boolean {
+export function isAdmin(email: string | undefined | null): boolean {
   return email === 'aitor.tendero@gmail.com'
 }
 
 export function getInitials(name: string): string {
+  if (!name) return '??'
   return name
     .split(' ')
     .map(n => n[0])
