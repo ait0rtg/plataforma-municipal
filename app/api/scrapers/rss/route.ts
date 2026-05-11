@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminSupabase } from '@supabase/supabase-js'
+
+function getAdminClient() {
+  return createAdminSupabase(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+    { auth: { persistSession: false } }
+  )
+}
 
 export async function POST() {
   try {
@@ -7,8 +16,10 @@ export async function POST() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autoritzat' }, { status: 401 })
 
-    const res = await fetch('https://tauler.seu-e.cat/rss?idEns=1704860009', {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+    const adminSupabase = getAdminClient()
+
+    const res = await fetch('https://tauler.seu-e.cat/api/rss?ens=1704860009&locale=ca&page=1', {
+      headers: { 'User-Agent': 'MonitorPolitic/1.0' },
     })
     const xml = await res.text()
 
@@ -28,13 +39,14 @@ export async function POST() {
 
       if (!url) continue
 
-      const { error } = await supabase.from('monitoratge').insert({
+      const { error } = await adminSupabase.from('monitoratge').insert({
         titol: titol.trim().slice(0, 300),
         resum: descripcio.replace(/<[^>]*>/g, '').trim().slice(0, 500),
         font: 'E-Tauler',
         tipus_document: 'ANUNCI',
         classificacio: 'INFORMATIU',
         url_original: url.trim(),
+        data_deteccio: new Date().toISOString(),
         data_publicacio: dataStr ? new Date(dataStr).toISOString() : new Date().toISOString(),
       })
 
