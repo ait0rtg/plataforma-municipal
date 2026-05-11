@@ -160,8 +160,8 @@ export default function AssistentPage() {
         throw new Error(err.error || `Error ${res.status}`)
       }
 
-      const data: AssistentResult = await res.json()
-      if (data.error) throw new Error((data as any).error)
+      const data = await res.json() as AssistentResult & { error?: string }
+      if (data.error) throw new Error(data.error))
 
       setResult(data)
       setHistorial(prev => [
