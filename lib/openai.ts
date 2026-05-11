@@ -15,7 +15,11 @@ export async function analitzaDocument(params: {
   const { font, titol, tipus, contingut, idioma = 'ca' } = params
   const lang = idioma === 'es' ? 'castellà' : 'català'
 
-  const prompt = `Ets l'assistent d'un regidor de l'oposició de l'Ajuntament de Castell-Platja d'Aro (Catalunya).
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `Ets l'assistent d'un regidor de l'oposició de l'Ajuntament de Castell-Platja d'Aro (Catalunya).
 
 NORMA FONAMENTAL: Basa't EXCLUSIVAMENT en el text proporcionat. NO afegeixis informació que no aparegui al text. Respon SEMPRE en ${lang}.
 
@@ -32,17 +36,14 @@ Respon EXACTAMENT en aquest format JSON (sense cap text addicional fora del JSON
   "resum": "3-4 línies basades exclusivament en el text",
   "venciment": "DD/MM/YYYY o null",
   "import_detectat": number o null,
-  "tema_principal": "urbanisme" | "contractacio" | "personal" | "serveis" | "pressupost" | "registre" | "altres",
-  "tipus_document": "acord" | "licitacio" | "adjudicacio" | "edicte" | "decret" | "inscripcio" | "sollicitud" | "altres",
+  "tema_principal": "urbanisme" | "contractació" | "personal" | "serveis" | "pressupost" | "registre" | "govern" | "altres",
+  "tipus_document": "acord" | "licitació" | "adjudicació" | "edicte" | "decret" | "inscripció" | "sol·licitud" | "altres",
   "confianca": "ALTA" | "MITJA" | "BAIXA",
   "per_a_l_oposicio": "una frase basada en fets del text",
   "proposta_accio": "opcional - si hi ha acció política clara, sinó null",
   "pregunta_ple_suggerida": "opcional - si es justifica, sinó null"
 }`
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
+    }],
     max_tokens: 600,
     temperature: 0.2,
     response_format: { type: 'json_object' },
@@ -51,12 +52,18 @@ Respon EXACTAMENT en aquest format JSON (sense cap text addicional fora del JSON
   return JSON.parse(response.choices[0].message.content || '{}')
 }
 
-// ── Assistent de preparació ────────────────────────────────────
+// ── Assistent de preparació (RAG sobre documents de la BD) ─────
 export async function assistentPreparacio(params: {
   query: string
   documents: Array<{
-    titol: string; font: string; resum: string; data: string
-    venciment?: string; import_detectat?: number; url: string
+    titol: string
+    font: string
+    resum?: string
+    data_deteccio: string
+    venciment?: string
+    import_detectat?: number
+    url_original: string
+    tema_principal?: string
   }>
   idioma?: string
 }) {
@@ -64,56 +71,36 @@ export async function assistentPreparacio(params: {
   const lang = idioma === 'es' ? 'castellà' : 'català'
 
   const contextDocs = documents.slice(0, 15).map((d, i) =>
-    `[${i + 1}] FONT: ${d.font} | DATA: ${d.data}\nTÍTOL: ${d.titol}\n${d.resum}${d.import_detectat ? `\nIMPORT: ${d.import_detectat.toLocaleString('ca')}€` : ''}${d.venciment ? `\nVENCIMENT: ${d.venciment}` : ''}\nURL: ${d.url}`
+    `[${i + 1}] FONT: ${d.font} | DATA: ${d.data_deteccio?.split('T')[0]}\nTÍTOL: ${d.titol}\n${d.resum || '(sense resum)'}${d.import_detectat ? `\nIMPORT: ${d.import_detectat.toLocaleString('ca')}€` : ''}${d.venciment ? `\nVENCIMENT: ${d.venciment}` : ''}\nURL: ${d.url_original}`
   ).join('\n\n---\n\n')
 
-  const prompt = `Ets un assessor polític expert en fiscalització municipal per a un regidor de l'oposició de l'Ajuntament de Castell-Platja d'Aro.
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `Ets un assessor polític expert en fiscalització municipal per a un regidor de l'oposició de l'Ajuntament de Castell-Platja d'Aro.
 
 El regidor pregunta: "${query}"
 
-Aquí tens ${documents.length} documents rellevants de la base de dades:
+Aquí tens ${documents.length} documents rellevants de la base de dades municipal:
 
 ${contextDocs}
 
 Genera un informe de preparació en ${lang} en format JSON:
 {
-  "resum_executiu": "3-4 línies amb el més important",
-  "antecedents": "Cronologia de decisions i acords rellevants",
+  "resum_executiu": "3-4 línies amb el més important per al regidor",
+  "antecedents": "Cronologia de decisions i acords rellevants trobats als documents",
   "acords_vigents": "Decisions del govern que segueixen en vigor",
-  "imports_contractes": "Quantitats, empreses i terminis actius",
+  "imports_contractes": "Quantitats, empreses i terminis actius detectats",
   "vulnerabilitats": "On pot ser més feble el govern o inconsistències detectades",
-  "preguntes_suggerides": ["pregunta 1", "pregunta 2", "pregunta 3"],
+  "preguntes_suggerides": ["pregunta formal 1", "pregunta formal 2", "pregunta formal 3"],
   "documents_font": [{"titol": "...", "url": "...", "data": "..."}]
 }`
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 1200,
+    }],
+    max_tokens: 1500,
     temperature: 0.3,
     response_format: { type: 'json_object' },
   })
 
   return JSON.parse(response.choices[0].message.content || '{}')
-}
-export const SYSTEM_PROMPT_ASSISTENT = `Ets un assistent polític especialitzat en l'Ajuntament de Castell-Platja d'Aro. 
-Analitzes documents municipals (acords, decrets, contractes, anuncis) i ajudes a un regidor de l'oposició a entendre i preparar respostes.
-Respon sempre en català. Sigues concís, objectiu i pràctic.
-Quan analitzis documents, destaca: imports econòmics, terminis, entitats afectades, i possibles preguntes que el regidor podria fer al ple.`
-
-export function buildAssistentPrompt(
-  consulta: string,
-  documents: Array<{ titol: string; tipus: string; contingut_text?: string; data_publicacio: string }>
-): string {
-  const docsContext = documents
-    .slice(0, 10)
-    .map((d, i) => `[${i + 1}] ${d.tipus.toUpperCase()} - ${d.titol} (${d.data_publicacio})\n${d.contingut_text?.slice(0, 500) || 'Sense contingut'}`)
-    .join('\n\n')
-
-  return `Consulta del regidor: ${consulta}
-
-Documents municipals rellevants:
-${docsContext}
-
-Respon en català amb: anàlisi breu, punts clau i suggeriments d'acció per al regidor.`
 }
