@@ -47,7 +47,7 @@ export default function IAClient({ sessions, documents, compromisos }: {
       <div className="min-h-[600px]">
         {tab === 'assessor' && (
           <div className="h-[calc(100vh-220px)]">
-            <AssessorClient sessions={sessions} />
+            <AssessorClient sessions={sessions} key="assessor" />
           </div>
         )}
         {tab === 'memoria' && (
