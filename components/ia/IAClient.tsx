@@ -1,18 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import AssessorClient from '@/components/assessor/AssessorClient'
+import dynamic from 'next/dynamic'
 import MemoriaClient from '@/components/memoria/MemoriaClient'
 import AlegacionsClient from '@/components/alegacions/AlegacionsClient'
 import { MessageSquare, Brain, FileEdit } from 'lucide-react'
 
-type Tab = 'assessor' | 'memoria' | 'alegacions'
+const AssessorClient = dynamic(() => import('@/components/assessor/AssessorClient'), { ssr: false })
 
-const TABS = [
-  { key: 'assessor', label: 'Assessor IA', icon: MessageSquare, desc: 'Xat amb memòria i cerca de documents' },
-  { key: 'memoria', label: 'Memòria Política', icon: Brain, desc: 'Cronologia per tema' },
-  { key: 'alegacions', label: 'Al·legacions', icon: FileEdit, desc: 'Generar esborranys polítics' },
-] as const
+type Tab = 'assessor' | 'memoria' | 'alegacions'
 
 export default function IAClient({ sessions, documents, compromisos }: {
   sessions: any[]
@@ -21,6 +17,12 @@ export default function IAClient({ sessions, documents, compromisos }: {
 }) {
   const [tab, setTab] = useState<Tab>('assessor')
 
+  const TABS = [
+    { key: 'assessor' as Tab, label: 'Assessor IA', icon: MessageSquare },
+    { key: 'memoria' as Tab, label: 'Memòria Política', icon: Brain },
+    { key: 'alegacions' as Tab, label: "Al·legacions", icon: FileEdit },
+  ]
+
   return (
     <div className="space-y-4">
       <div>
@@ -28,10 +30,9 @@ export default function IAClient({ sessions, documents, compromisos }: {
         <p className="text-sm text-slate-500">Assessor, memòria política i generador d'al·legacions</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-0">
+      <div className="flex gap-2 border-b border-slate-200">
         {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as Tab)}
+          <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === t.key
                 ? 'border-blue-600 text-blue-600'
@@ -43,18 +44,17 @@ export default function IAClient({ sessions, documents, compromisos }: {
         ))}
       </div>
 
-      {/* Contingut */}
       <div className="min-h-[600px]">
         {tab === 'assessor' && (
           <div className="h-[calc(100vh-220px)]">
-            <AssessorClient sessions={sessions} key="assessor" />
+            <AssessorClient sessions={sessions} />
           </div>
         )}
         {tab === 'memoria' && (
           <MemoriaClient documents={documents} compromisos={compromisos} />
         )}
         {tab === 'alegacions' && (
-          <AlegacionsClient documents={documents.filter(d =>
+          <AlegacionsClient documents={documents.filter((d: any) =>
             d.classificacio === 'URGENT' || d.classificacio === 'IMPORTANT'
           )} />
         )}
