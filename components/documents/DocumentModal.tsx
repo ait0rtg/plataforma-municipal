@@ -129,4 +129,159 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">PDF llegit</span>
               )}
               {ocult && (
-                <span className="text-xs bg-slate-200 text-slate-
+                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">Ocult</span>
+              )}
+            </div>
+            <h2 className="font-semibold text-slate-800 leading-snug">{doc.titol}</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Estat del document</h4>
+            <div className="flex gap-2 flex-wrap">
+              {ESTATS.map(e => (
+                <button
+                  key={e.value}
+                  onClick={() => handleEstat(e.value)}
+                  disabled={savingEstat}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border-2 ${
+                    estat === e.value
+                      ? `${e.color} border-current scale-105`
+                      : 'bg-slate-50 text-slate-400 border-transparent hover:border-slate-200'
+                  }`}
+                >
+                  {e.value === 'tancat' && <Archive className="w-3 h-3" />}
+                  {e.label}
+                </button>
+              ))}
+              {isAdmin && (
+                <button
+                  onClick={toggleOcult}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    ocult
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {ocult ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  {ocult ? 'Fer visible' : 'Ocultar'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2 gap-3">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Anàlisi IA</h4>
+              <button
+                onClick={generarResum}
+                disabled={loadingResum}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 disabled:opacity-50 transition-colors"
+              >
+                <Sparkles className="w-3 h-3" />
+                {loadingResum ? 'Llegint i analitzant...' : 'Llegir PDF i analitzar'}
+              </button>
+            </div>
+
+            {resum ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{resum}</p>
+                {puntsClau.length > 0 && (
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <div className="text-xs font-semibold text-slate-500 mb-2">Punts clau</div>
+                    <ul className="space-y-1">
+                      {puntsClau.map((punt, index) => (
+                        <li key={`${punt}-${index}`} className="text-sm text-slate-700">• {punt}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {impactePolitic && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-lg p-3">
+                    <div className="text-xs font-semibold text-amber-700 mb-1">Impacte polític</div>
+                    <p className="text-sm text-amber-950">{impactePolitic}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 italic">
+                Clica “Llegir PDF i analitzar” per obtenir un resum útil, punts clau, impacte polític, imports, dates i proposta d’acció.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="bg-slate-50 rounded-lg p-3">
+              <div className="text-xs text-slate-400 mb-0.5">Data detecció</div>
+              <div className="font-medium">{formatData(doc.data_deteccio)}</div>
+            </div>
+            {doc.venciment && (
+              <div className="bg-slate-50 rounded-lg p-3">
+                <div className="text-xs text-slate-400 mb-0.5">Venciment</div>
+                <div className={`font-medium ${colorVenciment(doc.venciment)}`}>{formatData(doc.venciment)}</div>
+              </div>
+            )}
+            {doc.import_detectat && (
+              <div className="bg-slate-50 rounded-lg p-3">
+                <div className="text-xs text-slate-400 mb-0.5">Import</div>
+                <div className="font-medium">{formatImport(doc.import_detectat)}</div>
+              </div>
+            )}
+            {doc.tema_principal && (
+              <div className="bg-slate-50 rounded-lg p-3">
+                <div className="text-xs text-slate-400 mb-0.5">Tema</div>
+                <div className="font-medium capitalize">{doc.tema_principal}</div>
+              </div>
+            )}
+          </div>
+
+          {doc.proposta_accio && (
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <div className="text-xs font-semibold text-blue-600 mb-1">Proposta d’acció</div>
+              <p className="text-sm text-blue-900">{doc.proposta_accio}</p>
+            </div>
+          )}
+
+          {doc.pregunta_ple_suggerida && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+              <div className="text-xs font-semibold text-indigo-600 mb-1">Pregunta de Ple suggerida</div>
+              <p className="text-sm text-indigo-900">{doc.pregunta_ple_suggerida}</p>
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
+              Observacions
+              <span className="text-green-600 font-normal normal-case ml-1">(editable per tots)</span>
+            </h4>
+            <textarea
+              value={observacions}
+              onChange={e => setObservacions(e.target.value)}
+              rows={3}
+              placeholder="Afegeix notes, seguiment o qualsevol observació..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+            <button
+              onClick={save}
+              disabled={saving}
+              className="mt-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Guardant...' : 'Guardar observacions'}
+            </button>
+          </div>
+
+          {doc.url_original && !doc.url_original.startsWith('upload://') && (
+            <a href={doc.url_original} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
+              <ExternalLink className="w-4 h-4" />
+              Veure document original
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
