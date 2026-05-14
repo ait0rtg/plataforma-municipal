@@ -7,20 +7,36 @@ export async function PATCH(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
+
     if (!user || !isAdmin(user.email)) {
-      return NextResponse.json({ error: 'Només l\'admin pot editar documents' }, { status: 403 })
+      return NextResponse.json({ error: 'Només l’admin pot editar documents' }, { status: 403 })
     }
+
     const { id, ...camps } = await req.json()
     if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
 
-    // Camps editables per l'admin
-    const campesPermesos = ['titol', 'resum', 'classificacio', 'tema_principal',
-      'import_detectat', 'venciment', 'per_a_l_oposicio', 'pregunta_ple_suggerida',
-      'observacions', 'estat_seguiment', 'ocult', 'contingut_complet']
+    const campsPermesos = [
+      'titol',
+      'resum',
+      'punts_clau',
+      'impacte_politic',
+      'classificacio',
+      'tema_principal',
+      'import_detectat',
+      'venciment',
+      'per_a_l_oposicio',
+      'pregunta_ple_suggerida',
+      'observacions',
+      'estat_seguiment',
+      'ocult',
+      'contingut_complet',
+      'estat_lectura_pdf',
+    ]
 
     const update: any = {}
-    for (const k of campesPermesos) {
-      if (k in camps) update[k] = camps[k]
+
+    for (const camp of campsPermesos) {
+      if (camp in camps) update[camp] = camps[camp]
     }
 
     if (Object.keys(update).length === 0) {
@@ -28,7 +44,15 @@ export async function PATCH(req: Request) {
     }
 
     const admin = getAdminClient()
-    await admin.from('monitoratge').update(update).eq('id', id)
+    const { error } = await admin
+      .from('monitoratge')
+      .update(update)
+      .eq('id', id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ error: 'Error intern' }, { status: 500 })
