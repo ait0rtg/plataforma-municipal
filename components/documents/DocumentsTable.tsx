@@ -1,8 +1,9 @@
 'use client'
+
 import { useState } from 'react'
-import { formatData, colorVenciment, isAdmin, truncate } from '@/lib/utils'
+import { formatData, isAdmin, truncate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import { ExternalLink, ChevronFirst, ChevronLast } from 'lucide-react'
+import { ExternalLink, ChevronFirst, ChevronLast, FileCheck, FileWarning, EyeOff } from 'lucide-react'
 import DocumentModal from './DocumentModal'
 import type { Document } from '@/types'
 
@@ -22,46 +23,65 @@ function Paginacio({ page, totalPages }: { page: number; totalPages: number }) {
 
   return (
     <div className="flex items-center gap-1">
-      <a href="?page=1"
-        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === 1 ? 'opacity-30 pointer-events-none' : ''}`}>
+      <a
+        href="?page=1"
+        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === 1 ? 'opacity-30 pointer-events-none' : ''}`}
+      >
         <ChevronFirst className="w-3.5 h-3.5" />
       </a>
+
       {pages.map((p, i) =>
         p === '...' ? (
           <span key={`dots-${i}`} className="px-1 text-xs text-slate-400">...</span>
         ) : (
-          <a key={p} href={`?page=${p}`}
+          <a
+            key={p}
+            href={`?page=${p}`}
             className={`px-2.5 py-1 text-xs rounded transition-colors ${
               page === p
                 ? 'bg-blue-600 text-white font-medium'
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-            }`}>
+            }`}
+          >
             {p}
           </a>
         )
       )}
-      <a href={`?page=${totalPages}`}
-        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === totalPages ? 'opacity-30 pointer-events-none' : ''}`}>
+
+      <a
+        href={`?page=${totalPages}`}
+        className={`p-1.5 rounded bg-slate-100 hover:bg-slate-200 ${page === totalPages ? 'opacity-30 pointer-events-none' : ''}`}
+      >
         <ChevronLast className="w-3.5 h-3.5" />
       </a>
     </div>
   )
 }
 
-export default function DocumentsTable({ documents, total, page, limit, userEmail }: {
-  documents: Document[]; total: number; page: number; limit: number; userEmail?: string
+export default function DocumentsTable({
+  documents,
+  total,
+  page,
+  limit,
+  userEmail,
+}: {
+  documents: Document[]
+  total: number
+  page: number
+  limit: number
+  userEmail?: string
 }) {
   const [selected, setSelected] = useState<Document | null>(null)
   const admin = isAdmin(userEmail)
-  const totalPages = Math.ceil(total / limit)
+  const totalPages = Math.max(1, Math.ceil(total / limit))
 
   return (
     <>
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-
-        {/* Paginació DALT */}
         <div className="px-4 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-          <span className="text-xs text-slate-400">{total} documents · pàg. {page}/{totalPages}</span>
+          <span className="text-xs text-slate-400">
+            {total} documents · pàg. {page}/{totalPages}
+          </span>
           <Paginacio page={page} totalPages={totalPages} />
         </div>
 
@@ -75,6 +95,7 @@ export default function DocumentsTable({ documents, total, page, limit, userEmai
               <th className="px-4 py-3" />
             </tr>
           </thead>
+
           <tbody className="divide-y divide-slate-100">
             {documents.length === 0 && (
               <tr>
@@ -83,32 +104,78 @@ export default function DocumentsTable({ documents, total, page, limit, userEmai
                 </td>
               </tr>
             )}
+
             {documents.map(doc => (
-              <tr key={doc.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => setSelected(doc)}>
+              <tr
+                key={doc.id}
+                className="hover:bg-slate-50 cursor-pointer"
+                onClick={() => setSelected(doc)}
+              >
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-800 truncate max-w-xs">{doc.titol || '(sense títol)'}</div>
-                  {doc.resum && <div className="text-xs text-slate-400 truncate max-w-xs">{truncate(doc.resum, 80)}</div>}
+                  <div className="font-medium text-slate-800 truncate max-w-xs">
+                    {doc.titol || '(sense títol)'}
+                  </div>
+
+                  {doc.resum && (
+                    <div className="text-xs text-slate-400 truncate max-w-xs">
+                      {truncate(doc.resum, 80)}
+                    </div>
+                  )}
+
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
+                    {doc.estat_lectura_pdf === 'llegit' ? (
+                      <span className="inline-flex items-center gap-1 text-green-600">
+                        <FileCheck className="h-3 w-3" />
+                        PDF llegit
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-amber-600">
+                        <FileWarning className="h-3 w-3" />
+                        Pendent de lectura
+                      </span>
+                    )}
+
+                    {doc.ocult && admin && (
+                      <span className="inline-flex items-center gap-1 text-slate-500">
+                        <EyeOff className="h-3 w-3" />
+                        Ocult
+                      </span>
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">{doc.font}</td>
+
+                <td className="px-4 py-3 text-xs text-slate-500 hidden md:table-cell">
+                  {doc.font}
+                </td>
+
                 <td className="px-4 py-3">
-                  <Badge variant={classifVariant(doc.classificacio)}>{doc.classificacio}</Badge>
+                  <Badge variant={classifVariant(doc.classificacio)}>
+                    {doc.classificacio}
+                  </Badge>
                 </td>
+
                 <td className="px-4 py-3 text-xs text-slate-400 hidden lg:table-cell">
                   {formatData(doc.data_deteccio)}
                 </td>
+
                 <td className="px-4 py-3">
-                  <a href={doc.url_original} target="_blank" rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="text-blue-500 hover:text-blue-700">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  {doc.url_original && !doc.url_original.startsWith('upload://') && (
+                    <a
+                      href={doc.url_original}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* Paginació BAIX */}
         <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between bg-slate-50">
           <span className="text-xs text-slate-400">{total} documents</span>
           <Paginacio page={page} totalPages={totalPages} />
