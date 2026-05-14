@@ -24,6 +24,8 @@ export interface Document {
   titol: string
   contingut_complet?: string
   resum?: string
+  punts_clau?: string[]
+  impacte_politic?: string
   classificacio: Classificacio
   nivell_confianca?: Confianca
   data_deteccio: string
@@ -38,6 +40,8 @@ export interface Document {
   estat_seguiment: EstatSeguiment
   observacions?: string
   estat?: EstatDocument
+  estat_lectura_pdf?: 'pendent' | 'llegit' | 'error'
+  ocult?: boolean
   recordatori_30d?: string
   recordatori_90d?: string
   recordatori_180d?: string
