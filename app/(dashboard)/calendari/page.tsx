@@ -19,8 +19,20 @@ export default async function CalendariPage() {
 
   const { data: eventsProis } = await supabase
     .from('calendari_events')
-    .select('id, titol, descripcio, data_inici, data_fi, tot_dia, color')
+    .select(
+      'id, titol, descripcio, data_inici, data_fi, tot_dia, color, tipus_cita, assistents, recordatori_actiu, recordatori_minuts'
+    )
     .order('data_inici', { ascending: true })
+
+  /*
+    Usuarios internos.
+    Si tu tabla de usuarios se llama diferente, cambia "usuaris" por el nombre correcto.
+    Campos esperados: id, nom, email.
+  */
+  const { data: usuaris } = await supabase
+    .from('usuaris')
+    .select('id, nom, email')
+    .order('nom', { ascending: true })
 
   const compromisos =
     compromisosRaw?.map((c) => ({
@@ -41,6 +53,7 @@ export default async function CalendariPage() {
         documents={documents || []}
         compromisos={compromisos}
         eventsProis={eventsProis || []}
+        usuaris={usuaris || []}
       />
     </div>
   )
