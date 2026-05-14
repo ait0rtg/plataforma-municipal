@@ -24,11 +24,6 @@ export default async function CalendariPage() {
     )
     .order('data_inici', { ascending: true })
 
-  /*
-    Usuarios internos.
-    Si tu tabla de usuarios se llama diferente, cambia "usuaris" por el nombre correcto.
-    Campos esperados: id, nom, email.
-  */
   const { data: usuaris } = await supabase
     .from('usuaris')
     .select('id, nom, email')
