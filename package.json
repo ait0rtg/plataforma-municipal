@@ -25,6 +25,8 @@
     "react-hook-form": "^7.52.1",
     "zod": "^3.23.8",
     "@hookform/resolvers": "^3.6.0"
+    "pdf-parse": "^1.1.1",
+
   },
   "devDependencies": {
     "typescript": "^5",
@@ -37,5 +39,7 @@
     "postcss": "^8",
     "eslint": "^8",
     "eslint-config-next": "14.1.0"
+    "@types/pdf-parse": "^1.1.5",
+
   }
 }
