@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import DocumentsFilters from '@/components/documents/DocumentsFilters'
 import DocumentsTable from '@/components/documents/DocumentsTable'
 import ActualitzarButton from '@/components/documents/ActualitzarButton'
+import UploadDocumentButton from '@/components/documents/UploadDocumentButton'
 import { Suspense } from 'react'
+import { isAdmin } from '@/lib/utils'
 
 type SearchParams = { [key: string]: string | undefined }
 
@@ -14,6 +16,7 @@ export default async function DocumentsPage({
   const params = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const admin = isAdmin(user?.email)
 
   const page = Math.max(1, parseInt(params.page || '1'))
   const limit = 25
@@ -27,6 +30,7 @@ export default async function DocumentsPage({
     .range(offset, offset + limit - 1)
 
   if (!mostrarArxivats) query = query.neq('estat_seguiment', 'tancat')
+  if (!admin) query = query.or('ocult.is.null,ocult.eq.false')
   if (params.classificacio) query = query.eq('classificacio', params.classificacio)
   if (params.font) query = query.eq('font', params.font)
   if (params.tema) query = query.eq('tema_principal', params.tema)
@@ -42,8 +46,6 @@ export default async function DocumentsPage({
 
   const { data: documents, count } = await query
 
-  const totalPages = Math.ceil((count || 0) / limit)
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -54,6 +56,7 @@ export default async function DocumentsPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <UploadDocumentButton isAdmin={admin} />
           <a
             href={mostrarArxivats ? '/documents' : '/documents?arxivats=1'}
             className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
