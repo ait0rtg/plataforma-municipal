@@ -1,264 +1,437 @@
 'use client'
 
 import { useState } from 'react'
+import {
+  AlertTriangle,
+  Brain,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  FileEdit,
+  FileText,
+  HelpCircle,
+  MessageSquare,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Zap,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import AssessorClient from '@/components/assessor/AssessorClient'
 import MemoriaClient from '@/components/memoria/MemoriaClient'
 import AlegacionsClient from '@/components/alegacions/AlegacionsClient'
-import { MessageSquare, Brain, FileEdit, Send, Bot, User, Paperclip, Download, Plus, Trash2, History, X, Search, ChevronLeft } from 'lucide-react'
-import { toast } from 'sonner'
-import { formatData } from '@/lib/utils'
 
-type Tab = 'assessor' | 'memoria' | 'alegacions'
-type Missatge = { rol: 'user' | 'assistant'; text: string; timestamp: string }
-type Sessio = { id: string; titol: string; created_at: string; updated_at: string; missatges?: Missatge[] }
-type Doc = { id: string; titol: string; font: string; classificacio: string; resum?: string }
+type Tab = 'assistent' | 'assessor' | 'memoria' | 'alegacions'
 
-const MISSATGE_INICIAL: Missatge = {
-  rol: 'assistant',
-  text: 'Hola! Soc el teu assessor polític municipal. Puc ajudar-te amb normativa, redacció de preguntes i mocions, interpretació de documents i qualsevol tema d\'interès municipal.\n\nPots adjuntar documents de la base de dades. Com et puc ajudar?',
-  timestamp: new Date().toISOString(),
+type AssistentResult = {
+  resum_executiu: string
+  antecedents: string
+  acords_vigents: string
+  imports_contractes: string
+  vulnerabilitats: string
+  preguntes_suggerides: string[]
+  documents_font: { titol: string; url: string; data?: string; font?: string }[]
+  alertes?: string[]
+  _meta?: {
+    documents_consultats: number
+    fonts_consultades: string[]
+    data_consulta: string
+  }
 }
 
-function AssessorInline({ sessions: initialSessions }: { sessions: Sessio[] }) {
-  const [sessions, setSessions] = useState<Sessio[]>(initialSessions)
-  const [sessioActual, setSessioActual] = useState<string | null>(null)
-  const [missatges, setMissatges] = useState<Missatge[]>([MISSATGE_INICIAL])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [panellHistorial, setPanellHistorial] = useState(false)
-  const [panellCerca, setPanellCerca] = useState(false)
-  const [cerca, setCerca] = useState('')
-  const [docsResultat, setDocsResultat] = useState<Doc[]>([])
-  const [docsAdjunts, setDocsAdjunts] = useState<Doc[]>([])
-  const [cercant, setCercant] = useState(false)
-  const bottomRef = { current: null as HTMLDivElement | null }
+const EXEMPLES = [
+  'Quins antecedents hi ha sobre la contracta de neteja viària?',
+  'Tot el que saps sobre les ordenances de terrasses i veladors',
+  'Historial complet de contractes de jardineria municipal',
+  "Acords i decisions sobre l'habitatge turístic al municipi",
+  'Quines licitacions estan actives o han vençut recentment?',
+  'Documents urgents dels últims 30 dies',
+]
 
-  async function cercarDocs(q: string) {
-    if (q.length < 3) { setDocsResultat([]); return }
-    setCercant(true)
-    try {
-      const res = await fetch(`/api/assessor/cerca?q=${encodeURIComponent(q)}`)
-      const data = await res.json()
-      setDocsResultat(data.documents || [])
-    } catch { setDocsResultat([]) }
-    finally { setCercant(false) }
+function SeccioPlegable({
+  titol,
+  icona,
+  contingut,
+  colorClass = '',
+}: {
+  titol: string
+  icona: React.ReactNode
+  contingut: string
+  colorClass?: string
+}) {
+  const [obert, setObert] = useState(true)
+  const [copiat, setCopiat] = useState(false)
+
+  function copiar() {
+    navigator.clipboard.writeText(contingut || '')
+    setCopiat(true)
+    setTimeout(() => setCopiat(false), 1600)
+    toast.success('Text copiat')
   }
-
-  async function guardarSessio(msgs: Missatge[], id: string | null): Promise<string> {
-    const res = await fetch('/api/assessor/sessio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ missatges: msgs, sessioId: id }),
-    })
-    const data = await res.json()
-    return data.sessioId
-  }
-
-  async function handleEnviar() {
-    if (!input.trim() || loading) return
-    const consulta = input.trim()
-    setInput('')
-    const nouUser: Missatge = {
-      rol: 'user',
-      text: consulta + (docsAdjunts.length > 0 ? `\n\n[Documents adjunts: ${docsAdjunts.map(d => d.titol).join(', ')}]` : ''),
-      timestamp: new Date().toISOString(),
-    }
-    const nousMissatges = [...missatges, nouUser]
-    setMissatges(nousMissatges)
-    setDocsAdjunts([])
-    setLoading(true)
-    try {
-      const res = await fetch('/api/assessor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consulta, historial: missatges.slice(-12), documents_adjunts: docsAdjunts }),
-      })
-      const data = await res.json()
-      const msgsActualitzats = [...nousMissatges, { rol: 'assistant' as const, text: data.resposta || 'Error', timestamp: new Date().toISOString() }]
-      setMissatges(msgsActualitzats)
-      const nouId = await guardarSessio(msgsActualitzats, sessioActual)
-      if (!sessioActual) {
-        setSessioActual(nouId)
-        setSessions(prev => [{ id: nouId, titol: consulta.slice(0, 50), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }, ...prev])
-      }
-    } catch { toast.error('Error de connexió') }
-    finally { setLoading(false) }
-  }
-
-  function novaSessio() {
-    setSessioActual(null)
-    setMissatges([MISSATGE_INICIAL])
-    setDocsAdjunts([])
-    setPanellHistorial(false)
-  }
-
-  function carregarSessio(s: Sessio) {
-    if (!s.missatges?.length) return
-    setSessioActual(s.id)
-    setMissatges(s.missatges)
-    setPanellHistorial(false)
-  }
-
-  async function eliminarSessio(id: string, e: React.MouseEvent) {
-    e.stopPropagation()
-    await fetch(`/api/assessor/sessio?id=${id}`, { method: 'DELETE' })
-    setSessions(prev => prev.filter(s => s.id !== id))
-    if (sessioActual === id) novaSessio()
-    toast.success('Sessió eliminada')
-  }
-
-  const CLASSIF_COLOR: Record<string, string> = { URGENT: 'text-red-600', IMPORTANT: 'text-orange-500', INFORMATIU: 'text-green-600' }
 
   return (
-    <div className="flex h-full border border-slate-200 rounded-xl overflow-hidden bg-white">
-      {panellHistorial && (
-        <div className="w-64 border-r border-slate-200 flex flex-col flex-shrink-0">
-          <div className="px-3 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-700">Converses</h3>
-            <button onClick={() => setPanellHistorial(false)} className="p-1 text-slate-400 hover:text-slate-600 rounded"><ChevronLeft className="w-4 h-4" /></button>
-          </div>
-          <button onClick={novaSessio} className="flex items-center gap-2 mx-3 mt-2 mb-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
-            <Plus className="w-4 h-4" /> Nova conversa
+    <div className={`bg-white border border-slate-200 rounded-xl overflow-hidden ${colorClass}`}>
+      <div
+        className="flex items-center justify-between px-5 py-3 cursor-pointer hover:bg-slate-50"
+        onClick={() => setObert(!obert)}
+      >
+        <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-2">
+          {icona}
+          {titol}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              copiar()
+            }}
+            className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
+            title="Copiar"
+          >
+            {copiat ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {sessions.map(s => (
-              <div key={s.id} onClick={() => carregarSessio(s)}
-                className={`flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer group transition-colors ${sessioActual === s.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'}`}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{s.titol || 'Conversa'}</p>
-                  <p className="text-xs text-slate-400">{formatData(s.updated_at)}</p>
-                </div>
-                <button onClick={e => eliminarSessio(s.id, e)} className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 flex-shrink-0">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50 flex-shrink-0">
-          <button onClick={() => setPanellHistorial(!panellHistorial)} className={`p-1.5 rounded-lg transition-colors ${panellHistorial ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`} title="Historial">
-            <History className="w-4 h-4" />
-          </button>
-          <Bot className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-semibold text-slate-700 flex-1">{sessioActual ? (sessions.find(s => s.id === sessioActual)?.titol || 'Assessor IA') : 'Assessor IA'}</span>
-          <button onClick={() => setPanellCerca(!panellCerca)} className={`p-1.5 rounded-lg transition-colors ${panellCerca ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`} title="Adjuntar document">
-            <Paperclip className="w-4 h-4" />
-          </button>
-          <button onClick={novaSessio} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg" title="Nova conversa">
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-        {panellCerca && (
-          <div className="border-b border-slate-100 px-4 py-3 bg-blue-50/50 flex-shrink-0">
-            <div className="relative mb-2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input type="text" value={cerca} onChange={e => { setCerca(e.target.value); cercarDocs(e.target.value) }}
-                placeholder="Cerca documents per adjuntar..."
-                className="w-full pl-8 pr-4 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
-            </div>
-            {docsAdjunts.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {docsAdjunts.map(d => (
-                  <span key={d.id} className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    {d.titol.slice(0, 30)}<button onClick={() => setDocsAdjunts(prev => prev.filter(x => x.id !== d.id))}><X className="w-3 h-3" /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {docsResultat.length > 0 && (
-              <div className="space-y-1 max-h-36 overflow-y-auto">
-                {docsResultat.map(d => (
-                  <button key={d.id} onClick={() => { if (!docsAdjunts.find(x => x.id === d.id)) { setDocsAdjunts(prev => [...prev, d]); toast.success('Document adjuntat') } }}
-                    className="w-full text-left px-3 py-1.5 bg-white border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs ${CLASSIF_COLOR[d.classificacio] || ''}`}>●</span>
-                      <span className="text-xs font-medium text-slate-700 flex-1 truncate">{d.titol}</span>
-                      <span className="text-xs text-slate-400 flex-shrink-0">{d.font}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {missatges.map((m, i) => (
-            <div key={i} className={`flex gap-3 ${m.rol === 'user' ? 'justify-end' : 'justify-start'}`}>
-              {m.rol === 'assistant' && <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><Bot className="w-4 h-4 text-blue-600" /></div>}
-              <div className="flex flex-col gap-1 max-w-2xl">
-                <div className={`px-4 py-2.5 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${m.rol === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-800 rounded-bl-none'}`}>{m.text}</div>
-                <span className={`text-xs text-slate-300 ${m.rol === 'user' ? 'text-right' : ''}`}>{new Date(m.timestamp).toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
-              {m.rol === 'user' && <div className="w-7 h-7 bg-slate-200 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"><User className="w-4 h-4 text-slate-600" /></div>}
-            </div>
-          ))}
-          {loading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"><Bot className="w-4 h-4 text-blue-600" /></div>
-              <div className="bg-slate-100 px-4 py-3 rounded-xl rounded-bl-none">
-                <div className="flex gap-1">{[0,150,300].map(d => <span key={d} className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}</div>
-              </div>
-            </div>
-          )}
-          <div ref={el => { bottomRef.current = el }} />
-        </div>
-        <div className="px-4 py-3 border-t border-slate-100 flex-shrink-0">
-          {docsAdjunts.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {docsAdjunts.map(d => (
-                <span key={d.id} className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded-full">
-                  📎 {d.titol.slice(0, 25)}<button onClick={() => setDocsAdjunts(prev => prev.filter(x => x.id !== d.id))}><X className="w-3 h-3" /></button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleEnviar()}
-              placeholder={docsAdjunts.length > 0 ? `Pregunta sobre els ${docsAdjunts.length} documents adjunts...` : 'Escriu la teva consulta... (Enter per enviar)'}
-              className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={loading} />
-            <button onClick={handleEnviar} disabled={loading || !input.trim()} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
+          {obert ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
         </div>
       </div>
+      {obert && (
+        <div className="px-5 pb-4 border-t border-slate-100">
+          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap pt-3">
+            {contingut || 'Sense informació disponible.'}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
 
-export default function IAClient({ sessions, documents, compromisos }: {
+function descarregarInforme(result: AssistentResult, consulta: string) {
+  const contingut = `INFORME DE PREPARACIÓ - MONITOR POLÍTIC MUNICIPAL
+Castell-Platja d'Aro | ${new Date().toLocaleDateString('ca-ES')}
+
+CONSULTA: ${consulta}
+============================================================
+
+RESUM EXECUTIU
+${result.resum_executiu || ''}
+
+ANTECEDENTS I HISTORIAL
+${result.antecedents || ''}
+
+ACORDS VIGENTS
+${result.acords_vigents || ''}
+
+IMPORTS I CONTRACTES
+${result.imports_contractes || ''}
+
+VULNERABILITATS DEL GOVERN
+${result.vulnerabilitats || ''}
+
+PREGUNTES SUGGERIDES PER AL PLE
+${result.preguntes_suggerides?.map((q, i) => `${i + 1}. ${q}`).join('\n') || ''}
+
+DOCUMENTS CONSULTATS
+${result.documents_font?.map(d => `- ${d.titol} (${d.data || 'N/D'}) ${d.url || ''}`).join('\n') || ''}
+
+Generat per Monitor Polític Municipal | ${new Date().toISOString()}
+`
+
+  const blob = new Blob([contingut], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `informe-ia-${new Date().toISOString().split('T')[0]}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Informe descarregat')
+}
+
+function AssistentPreparacio() {
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<AssistentResult | null>(null)
+  const [consultaActual, setConsultaActual] = useState('')
+  const [idioma, setIdioma] = useState<'ca' | 'es'>('ca')
+  const [historial, setHistorial] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+
+  async function handleQuery(q?: string) {
+    const consulta = q || query
+    if (!consulta.trim() || loading) return
+
+    setLoading(true)
+    setResult(null)
+    setConsultaActual(consulta)
+
+    try {
+      const res = await fetch('/api/assistent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consulta,
+          idioma,
+          historial: historial.slice(-4),
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || data.error) throw new Error(data.error || 'Error en la consulta.')
+
+      setResult(data)
+      setHistorial(prev => [
+        ...prev,
+        { role: 'user', content: consulta },
+        { role: 'assistant', content: data.resum_executiu || '' },
+      ])
+      setQuery('')
+    } catch (error: any) {
+      toast.error(error.message || 'Error en la consulta.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function novaConsulta() {
+    setQuery('')
+    setResult(null)
+    setConsultaActual('')
+  }
+
+  function netejarSessio() {
+    setHistorial([])
+    novaConsulta()
+    toast.success('Sessió reiniciada')
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-blue-600" />
+            Assistent de preparació
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Cerca a la base documental i prepara un informe polític amb antecedents, acords, imports, vulnerabilitats i preguntes.
+          </p>
+        </div>
+        {historial.length > 0 && (
+          <button
+            onClick={netejarSessio}
+            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Nova sessió
+          </button>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div className="flex gap-2 mb-3">
+          {(['ca', 'es'] as const).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setIdioma(lang)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                idioma === lang ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {lang === 'ca' ? 'Català' : 'Castellà'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleQuery()}
+              placeholder="Exemple: Tot el que hi ha sobre la contracta de neteja viària"
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+            />
+          </div>
+          <button
+            onClick={() => handleQuery()}
+            disabled={loading || !query.trim()}
+            className="px-5 py-3 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 whitespace-nowrap"
+          >
+            {loading ? 'Analitzant...' : 'Consultar'}
+          </button>
+        </div>
+      </div>
+
+      {!result && !loading && (
+        <div>
+          <p className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Exemples de consultes</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {EXEMPLES.map((ex, i) => (
+              <button
+                key={i}
+                onClick={() => handleQuery(ex)}
+                className="text-left px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+          <div className="w-10 h-10 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm font-medium text-slate-600">Consultant la base de dades municipal...</p>
+          <p className="text-xs text-slate-400 mt-1">Cercant documents rellevants i generant l'informe</p>
+        </div>
+      )}
+
+      {result && (
+        <div className="space-y-4">
+          {result.alertes && result.alertes.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <h3 className="font-semibold text-red-800 text-sm flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4" />
+                Alertes urgents
+              </h3>
+              <ul className="space-y-1">
+                {result.alertes.map((alerta, index) => (
+                  <li key={`${alerta}-${index}`} className="text-sm text-red-700">{alerta}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="font-semibold text-blue-900 text-sm uppercase tracking-wide">Resum executiu</h3>
+              <button
+                onClick={() => descarregarInforme(result, consultaActual)}
+                className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 px-2 py-1 hover:bg-blue-100 rounded"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Descarregar
+              </button>
+            </div>
+            <p className="text-slate-800 text-sm leading-relaxed whitespace-pre-wrap">{result.resum_executiu}</p>
+            {result._meta && (
+              <p className="text-xs text-blue-700 mt-3">
+                {result._meta.documents_consultats} documents consultats
+                {result._meta.fonts_consultades?.length ? ` · ${result._meta.fonts_consultades.join(', ')}` : ''}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SeccioPlegable titol="Antecedents i historial" icona={<FileText className="w-4 h-4 text-slate-400" />} contingut={result.antecedents} />
+            <SeccioPlegable titol="Acords vigents" icona={<FileText className="w-4 h-4 text-green-500" />} contingut={result.acords_vigents} />
+            <SeccioPlegable titol="Imports i contractes" icona={<FileText className="w-4 h-4 text-orange-400" />} contingut={result.imports_contractes} />
+            <SeccioPlegable titol="Vulnerabilitats del govern" icona={<AlertTriangle className="w-4 h-4 text-orange-500" />} contingut={result.vulnerabilitats} colorClass="border-orange-200 bg-orange-50/30" />
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-5">
+            <h3 className="font-semibold text-slate-700 text-sm flex items-center gap-2 mb-4">
+              <HelpCircle className="w-4 h-4 text-blue-500" />
+              Preguntes suggerides per al Ple
+            </h3>
+            <ol className="space-y-3">
+              {result.preguntes_suggerides?.map((pregunta, index) => (
+                <li key={`${pregunta}-${index}`} className="flex gap-3">
+                  <span className="font-bold text-blue-600 min-w-[24px] text-sm">{index + 1}.</span>
+                  <p className="text-sm text-slate-700 leading-relaxed">{pregunta}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {result.documents_font?.length > 0 && (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <h3 className="font-semibold text-slate-500 text-xs uppercase tracking-wide mb-3">
+                Documents consultats ({result.documents_font.length})
+              </h3>
+              <ul className="space-y-2">
+                {result.documents_font.map((doc, index) => (
+                  <li key={`${doc.titol}-${index}`} className="text-xs text-slate-600">
+                    {doc.url ? (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                        {doc.titol}
+                      </a>
+                    ) : (
+                      <span className="font-medium">{doc.titol}</span>
+                    )}
+                    <span className="text-slate-400"> {doc.font ? `· ${doc.font}` : ''} {doc.data ? `· ${doc.data}` : ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function IAClient({
+  initialTab = 'assistent',
+  sessions,
+  documents,
+  compromisos,
+}: {
+  initialTab?: Tab
   sessions: any[]
   documents: any[]
   compromisos: any[]
 }) {
-  const [tab, setTab] = useState<Tab>('assessor')
+  const [tab, setTab] = useState<Tab>(initialTab)
 
-  const TABS = [
+  const tabs = [
+    { key: 'assistent' as Tab, label: 'Assistent', icon: Zap },
     { key: 'assessor' as Tab, label: 'Assessor IA', icon: MessageSquare },
-    { key: 'memoria' as Tab, label: 'Memòria Política', icon: Brain },
-    { key: 'alegacions' as Tab, label: "Al·legacions", icon: FileEdit },
+    { key: 'memoria' as Tab, label: 'Memòria política', icon: Brain },
+    { key: 'alegacions' as Tab, label: 'Alegacions', icon: FileEdit },
   ]
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Intel·ligència IA</h1>
-        <p className="text-sm text-slate-500">Assessor, memòria política i generador d'al·legacions</p>
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <Sparkles className="w-6 h-6 text-blue-600" />
+          Intel·ligència IA
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Assistent, assessor, memòria política i alegacions en un únic espai.
+        </p>
       </div>
-      <div className="flex gap-2 border-b border-slate-200">
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-            <t.icon className="w-4 h-4" />{t.label}
+
+      <div className="flex gap-2 border-b border-slate-200 overflow-x-auto">
+        {tabs.map(item => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
+              tab === item.key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <item.icon className="w-4 h-4" />
+            {item.label}
           </button>
         ))}
       </div>
+
       <div className="min-h-[600px]">
-        {tab === 'assessor' && <div className="h-[calc(100vh-220px)]"><AssessorInline sessions={sessions} /></div>}
+        {tab === 'assistent' && <AssistentPreparacio />}
+        {tab === 'assessor' && <AssessorClient />}
         {tab === 'memoria' && <MemoriaClient documents={documents} compromisos={compromisos} />}
-        {tab === 'alegacions' && <AlegacionsClient documents={documents.filter((d: any) => d.classificacio === 'URGENT' || d.classificacio === 'IMPORTANT')} />}
+        {tab === 'alegacions' && (
+          <AlegacionsClient
+            documents={documents.filter((d: any) => d.classificacio === 'URGENT' || d.classificacio === 'IMPORTANT')}
+          />
+        )}
       </div>
     </div>
   )
