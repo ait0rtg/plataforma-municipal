@@ -3,9 +3,18 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, FileText, Zap, Target, BarChart3,
-  LogOut, Shield, Settings, MessageSquare, Calendar,
-  Brain, FileEdit, Menu, X
+  LayoutDashboard,
+  FileText,
+  Target,
+  BarChart3,
+  LogOut,
+  Shield,
+  Settings,
+  MessageSquare,
+  Calendar,
+  Menu,
+  X,
+  Sparkles,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isAdmin, cn, getInitials } from '@/lib/utils'
@@ -15,21 +24,30 @@ const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/documents', label: 'Documents', icon: FileText },
   { href: '/calendari', label: 'Calendari', icon: Calendar },
-  { href: '/assistent', label: 'Assistent', icon: Zap, highlight: true },
-  { href: '/memoria', label: 'Memòria Política', icon: Brain },
-  { href: '/alegacions', label: 'Al·legacions', icon: FileEdit },
-  { href: '/assessor', label: 'Assessor IA', icon: MessageSquare },
+  { href: '/ia', label: 'IA', icon: Sparkles, highlight: true },
   { href: '/compromisos', label: 'Compromisos', icon: Target },
   { href: '/analisi', label: 'Anàlisi', icon: BarChart3 },
   { href: '/preguntes-ple', label: 'Preguntes pel Ple', icon: MessageSquare },
 ]
 
-function NavLink({ href, label, icon: Icon, highlight, pathname }: {
-  href: string; label: string; icon: any; highlight?: boolean; pathname: string
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  highlight,
+  pathname,
+}: {
+  href: string
+  label: string
+  icon: any
+  highlight?: boolean
+  pathname: string
 }) {
   const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+
   return (
-    <Link href={href}
+    <Link
+      href={href}
       className={cn(
         'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all',
         active
@@ -37,7 +55,8 @@ function NavLink({ href, label, icon: Icon, highlight, pathname }: {
           : highlight
             ? 'text-blue-600 hover:bg-blue-50'
             : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
-      )}>
+      )}
+    >
       <Icon className="w-4 h-4 flex-shrink-0" />
       <span className="flex-1">{label}</span>
       {highlight && !active && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />}
@@ -69,17 +88,32 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV.map(item => <NavLink key={item.href} {...item} pathname={pathname} />)}
+        {NAV.map(item => (
+          <NavLink key={item.href} {...item} pathname={pathname} />
+        ))}
+
         {admin && (
           <>
             <div className="border-t border-slate-100 my-2" />
-            <Link href="/admin" className={cn('flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              pathname === '/admin' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-50')}>
-              <Shield className="w-4 h-4" />Administració
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname === '/admin' ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-50'
+              )}
+            >
+              <Shield className="w-4 h-4" />
+              Administració
             </Link>
-            <Link href="/admin/usuaris" className={cn('flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              pathname.startsWith('/admin/usuaris') ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-50')}>
-              <Settings className="w-4 h-4" />Usuaris
+            <Link
+              href="/admin/usuaris"
+              className={cn(
+                'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                pathname.startsWith('/admin/usuaris') ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-50'
+              )}
+            >
+              <Settings className="w-4 h-4" />
+              Usuaris
             </Link>
           </>
         )}
@@ -95,9 +129,12 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
             <div className="text-xs text-slate-400 truncate">{userEmail}</div>
           </div>
         </div>
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors">
-          <LogOut className="w-3.5 h-3.5" />Tancar sessió
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Tancar sessió
         </button>
       </div>
     </div>
@@ -105,15 +142,23 @@ export default function Sidebar({ userEmail, userName }: { userEmail: string; us
 
   return (
     <>
-      <aside className="hidden lg:flex w-56 bg-white border-r border-slate-200 flex-col h-full">{content}</aside>
-      <button onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-3 left-3 z-40 p-2 bg-white border border-slate-200 rounded-lg shadow-sm">
+      <aside className="hidden lg:flex w-56 bg-white border-r border-slate-200 flex-col h-full">
+        {content}
+      </aside>
+
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed top-3 left-3 z-40 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"
+      >
         <Menu className="w-5 h-5 text-slate-600" />
       </button>
+
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/30" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-56 bg-white border-r border-slate-200 flex flex-col h-full z-50">{content}</aside>
+          <aside className="relative w-56 bg-white border-r border-slate-200 flex flex-col h-full z-50">
+            {content}
+          </aside>
         </div>
       )}
     </>
