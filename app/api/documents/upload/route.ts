@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/utils'
-import { extractPdfTextFromBuffer } from '@/lib/pdf'
-import { analyseMunicipalDocument } from '@/lib/document-analysis'
+import { analyseMunicipalDocumentFromText } from '@/lib/document-analysis'
 
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user || !isAdmin(user.email)) {
-      return NextResponse.json({ error: 'Només l’admin pot pujar documents.' }, { status: 403 })
+      return NextResponse.json({ error: 'Només l\'admin pot pujar documents.' }, { status: 403 })
     }
 
     const form = await req.formData()
@@ -21,50 +20,34 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Falta el fitxer PDF.' }, { status: 400 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const pdf = await extractPdfTextFromBuffer(buffer, 'upload')
     const documentTitle = titol || file.name.replace(/\.pdf$/i, '')
 
-    const analysis = await analyseMunicipalDocument({
-      titol: documentTitle,
-      font,
-      contingut: pdf.text,
-    })
+    // Passar el PDF directament a Gemini via base64
+    const { GoogleGenerativeAI } = await import('@google/generative-ai')
+    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '')
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
 
-    const { data, error } = await supabase
-      .from('monitoratge')
-      .insert({
-        url_original: `upload://${Date.now()}-${file.name}`,
-        font,
-        tipus: 'pdf_intern',
-        tipus_document: 'pdf',
-        titol: documentTitle,
-        contingut_complet: pdf.text,
-        resum: analysis.resum,
-        punts_clau: analysis.punts_clau,
-        impacte_politic: analysis.impacte_politic,
-        classificacio: analysis.classificacio,
-        nivell_confianca: analysis.nivell_confianca,
-        venciment: analysis.venciment,
-        import_detectat: analysis.import_detectat,
-        tema_principal: analysis.tema_principal,
-        proposta_accio: analysis.proposta_accio,
-        pregunta_ple_suggerida: analysis.pregunta_ple_suggerida,
-        estat_lectura_pdf: 'llegit',
-        estat_seguiment: 'pendent',
-        estat: 'nou',
-      })
-      .select()
-      .single()
+    const arrayBuffer = await file.arrayBuffer()
+    const base64Data = Buffer.from(arrayBuffer).toString('base64')
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    return NextResponse.json({ document: data })
-  } catch (error: any) {
-    console.error('Error pujant PDF:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error pujant el PDF.' },
-      { status: 500 }
-    )
-  }
+    const prompt = `Ets un assessor polític municipal per a un regidor de l'oposició de Castell-Platja d'Aro.
+Analitza aquest document PDF i retorna NOMÉS JSON vàlid sense cap text addicional:
+{
+  "resum": "resum útil de 6-10 línies, concret i accionable",
+  "punts_clau": ["punt clau 1", "punt clau 2", "punt clau 3"],
+  "impacte_politic": "per què importa políticament o administrativament",
+  "proposta_accio": "acció concreta recomanada o null",
+  "pregunta_ple_suggerida": "pregunta formal per al Ple o null",
+  "classificacio": "URGENT | IMPORTANT | INFORMATIU",
+  "tema_principal": "urbanisme | contractacio | personal | serveis | pressupost | registre | govern | medi_ambient | seguretat | altres",
+  "import_detectat": 1234.56 o null,
+  "venciment": "YYYY-MM-DD o null",
+  "terminis_addicionals": [{"descripcio": "nom del termini", "data": "YYYY-MM-DD"}],
+  "nivell_confianca": "ALTA | MITJA | BAIXA"
 }
+
+Títol del document: ${documentTitle}
+Font: ${font}`
+
+    const result = await model.generateContent([
+      { inlineData: { mimeType: 'app
