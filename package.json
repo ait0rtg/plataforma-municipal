@@ -25,7 +25,7 @@
     "class-variance-authority": "^0.7.0",
     "react-hook-form": "^7.52.1",
     "zod": "^3.23.8",
-    "@hookform/resolvers": "^3.6.0"
+    "@hookform/resolvers": "^3.6.0",
     "@google/generative-ai": "^0.21.0"
   },
   "devDependencies": {
