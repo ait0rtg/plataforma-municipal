@@ -1,11 +1,6 @@
-import { openai } from '@/lib/openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-export type DocumentAnalysisInput = {
-  titol: string
-  font?: string
-  url?: string
-  contingut: string
-}
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || '')
 
 export type DocumentAnalysis = {
   resum: string
@@ -17,14 +12,15 @@ export type DocumentAnalysis = {
   tema_principal: string
   import_detectat: number | null
   venciment: string | null
+  terminis_addicionals: { descripcio: string; data: string }[]
   nivell_confianca: 'ALTA' | 'MITJA' | 'BAIXA'
 }
 
 function safeJson(content: string): DocumentAnalysis {
   const cleaned = content
-    .replace(/^```json/i, '')
-    .replace(/^```/i, '')
-    .replace(/```$/i, '')
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
     .trim()
 
   const parsed = JSON.parse(cleaned)
@@ -45,39 +41,24 @@ function safeJson(content: string): DocumentAnalysis {
     tema_principal: String(parsed.tema_principal || 'altres'),
     import_detectat: typeof parsed.import_detectat === 'number' ? parsed.import_detectat : null,
     venciment: parsed.venciment ? String(parsed.venciment) : null,
+    terminis_addicionals: Array.isArray(parsed.terminis_addicionals)
+      ? parsed.terminis_addicionals.filter((t: any) => t.data && t.descripcio)
+      : [],
     nivell_confianca: ['ALTA', 'MITJA', 'BAIXA'].includes(parsed.nivell_confianca)
       ? parsed.nivell_confianca
       : 'MITJA',
   }
 }
 
-export async function analyseMunicipalDocument(
-  input: DocumentAnalysisInput
-): Promise<DocumentAnalysis> {
-  const content = input.contingut.slice(0, 45000)
-
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    temperature: 0.15,
-    max_tokens: 1600,
-    response_format: { type: 'json_object' },
-    messages: [
-      {
-        role: 'system',
-        content: `Ets un assessor polític municipal per a un regidor de l'oposició de Castell-Platja d'Aro.
+const SYSTEM_PROMPT = `Ets un assessor polític municipal per a un regidor de l'oposició de Castell-Platja d'Aro.
 Has d'analitzar documents administratius amb rigor. No inventis dades. Si no hi ha una dada, posa null.
-Respon només amb JSON vàlid.`,
-      },
-      {
-        role: 'user',
-        content: `Analitza aquest document municipal.
+Respon NOMÉS amb JSON vàlid, sense cap text addicional ni markdown.`
 
-Títol: ${input.titol}
-Font: ${input.font || 'desconeguda'}
-URL: ${input.url || 'no disponible'}
+const USER_PROMPT = (titol: string, font: string, url: string) => `Analitza aquest document municipal.
 
-TEXT DEL DOCUMENT:
-${content}
+Títol: ${titol}
+Font: ${font}
+URL: ${url}
 
 Retorna exactament aquest JSON:
 {
@@ -89,12 +70,71 @@ Retorna exactament aquest JSON:
   "classificacio": "URGENT | IMPORTANT | INFORMATIU",
   "tema_principal": "urbanisme | contractacio | personal | serveis | pressupost | registre | govern | medi_ambient | seguretat | altres",
   "import_detectat": 1234.56 o null,
-  "venciment": "YYYY-MM-DD o null",
+  "venciment": "YYYY-MM-DD o null (el termini o data límit principal)",
+  "terminis_addicionals": [{"descripcio": "nom del termini", "data": "YYYY-MM-DD"}],
   "nivell_confianca": "ALTA | MITJA | BAIXA"
-}`,
-      },
-    ],
+}`
+
+export async function analyseMunicipalDocumentFromUrl(
+  url: string,
+  titol: string,
+  font: string = 'Documents'
+): Promise<DocumentAnalysis> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
+
+  // Descarregar el PDF com a bytes per passar-lo directament a Gemini
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 MonitorPolitic/1.0' },
   })
 
-  return safeJson(completion.choices[0].message.content || '{}')
+  if (!res.ok) {
+    throw new Error(`No s'ha pogut descarregar el document (${res.status})`)
+  }
+
+  const contentType = res.headers.get('content-type') || ''
+  const arrayBuffer = await res.arrayBuffer()
+  const base64Data = Buffer.from(arrayBuffer).toString('base64')
+
+  const isPdf = contentType.includes('pdf') || url.toLowerCase().includes('.pdf')
+
+  let result
+  if (isPdf) {
+    result = await model.generateContent([
+      { text: SYSTEM_PROMPT },
+      {
+        inlineData: {
+          mimeType: 'application/pdf',
+          data: base64Data,
+        },
+      },
+      { text: USER_PROMPT(titol, font, url) },
+    ])
+  } else {
+    // Document de text pla
+    const text = Buffer.from(arrayBuffer).toString('utf8').slice(0, 120000)
+    result = await model.generateContent([
+      { text: SYSTEM_PROMPT },
+      { text: `TEXT DEL DOCUMENT:\n${text}` },
+      { text: USER_PROMPT(titol, font, url) },
+    ])
+  }
+
+  return safeJson(result.response.text())
+}
+
+export async function analyseMunicipalDocumentFromText(
+  contingut: string,
+  titol: string,
+  font: string = 'Documents',
+  url: string = ''
+): Promise<DocumentAnalysis> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' })
+
+  const result = await model.generateContent([
+    { text: SYSTEM_PROMPT },
+    { text: `TEXT DEL DOCUMENT:\n${contingut.slice(0, 120000)}` },
+    { text: USER_PROMPT(titol, font, url) },
+  ])
+
+  return safeJson(result.response.text())
 }
