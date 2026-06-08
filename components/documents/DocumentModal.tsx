@@ -36,7 +36,7 @@ export default function DocumentModal({ doc, isAdmin, onClose }: {
     setLoadingResum(true)
 
     try {
-      const res = await fetch('/api/documents/resum', {
+      const res = await fetch('/api/resum', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
