@@ -7,7 +7,6 @@ export default async function AnalisiPage() {
   const [
     { data: documents },
     { data: imports },
-    { data: compromisos },
   ] = await Promise.all([
     supabase.from('monitoratge')
       .select('classificacio, tema_principal, font, import_detectat, data_deteccio, tipus_document, estat_seguiment')
@@ -18,13 +17,10 @@ export default async function AnalisiPage() {
       .gt('import_detectat', 0)
       .order('import_detectat', { ascending: false })
       .limit(20),
-    supabase.from('compromisos')
-      .select('estat, tema, created_at')
   ])
 
   const docs = documents || []
 
-  // Stats generals
   const total = docs.length
   const urgents = docs.filter(d => d.classificacio === 'URGENT').length
   const importants = docs.filter(d => d.classificacio === 'IMPORTANT').length
@@ -46,7 +42,7 @@ export default async function AnalisiPage() {
     .slice(-12)
     .map(([mes, v]) => ({ mes: mes.substring(0, 7), ...v, imports: Math.round(v.imports) }))
 
-  // Per tema
+  // Per tema (tots els documents)
   const byTema: Record<string, { count: number; imports: number }> = {}
   docs.forEach(d => {
     const t = d.tema_principal || 'altres'
@@ -59,12 +55,26 @@ export default async function AnalisiPage() {
     .slice(0, 8)
     .map(([tema, v]) => ({ tema, ...v, imports: Math.round(v.imports) }))
 
+  // Subtemes de la Junta de Govern (per tema_principal dels seus documents)
+  const docsJunta = docs.filter(d =>
+    d.font && (d.font.toLowerCase().includes('junta') || d.font.toLowerCase().includes('govern'))
+  )
+  const byTemaJunta: Record<string, { count: number; imports: number }> = {}
+  docsJunta.forEach(d => {
+    const t = d.tema_principal || 'altres'
+    if (!byTemaJunta[t]) byTemaJunta[t] = { count: 0, imports: 0 }
+    byTemaJunta[t].count++
+    byTemaJunta[t].imports += d.import_detectat || 0
+  })
+  const perTemaJunta = Object.entries(byTemaJunta)
+    .sort(([, a], [, b]) => b.count - a.count)
+    .map(([tema, v]) => ({ tema, ...v, imports: Math.round(v.imports) }))
+
   // Per font
   const byFont: Record<string, number> = {}
   docs.forEach(d => { if (d.font) byFont[d.font] = (byFont[d.font] || 0) + 1 })
   const perFont = Object.entries(byFont).sort(([, a], [, b]) => b - a).map(([font, count]) => ({ font, count }))
 
-  // Top imports
   const topImports = (imports || []).slice(0, 10).map(d => ({
     titol: d.titol?.slice(0, 60) || 'N/D',
     import_detectat: d.import_detectat,
@@ -77,13 +87,14 @@ export default async function AnalisiPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Anàlisi de tendències</h1>
-        <p className="text-sm text-slate-500">Patrons, imports i evolució de l'activitat municipal</p>
+        <p className="text-sm text-slate-500">Patrons, imports i evolució de l&apos;activitat municipal</p>
       </div>
-
       <AnalisiClient
         stats={{ total, urgents, importants, importTotal, pendents }}
         evolucioMensual={evolucioMensual}
         perTema={perTema}
+        perTemaJunta={perTemaJunta}
+        totalJunta={docsJunta.length}
         perFont={perFont}
         topImports={topImports}
       />
